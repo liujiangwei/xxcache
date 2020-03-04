@@ -19,7 +19,7 @@ func (cache *XXCache) RPush(key string, value string) error {
 	defer cache.lock.Unlock()
 
 	v := cache.get(key)
-	if v == nil{
+	if v == nil {
 		v = &CacheValueList{
 			List: list.New(),
 		}
@@ -45,7 +45,7 @@ func (cache *XXCache) LPop(key string) (string, error) {
 	defer cache.lock.Unlock()
 
 	v := cache.get(key)
-	if v ==  nil{
+	if v == nil {
 		return "", ErrListPopFromEmpty
 	}
 
@@ -56,7 +56,7 @@ func (cache *XXCache) LPop(key string) (string, error) {
 		if !v.List.IsTail(n) {
 			v.List.Remove(n)
 			return n.Value(), nil
-		}else{
+		} else {
 			cache.delete(key)
 			return "", ErrListPopFromEmpty
 		}

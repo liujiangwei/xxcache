@@ -3,7 +3,7 @@ package xxcache
 import "errors"
 
 type CacheValueHash struct {
-	hash map[string]string
+	hash   map[string]string
 	length int
 }
 
@@ -51,23 +51,23 @@ func (cache *XXCache) HGet(key, field string) (string, error) {
 	}
 }
 
-func (cache *XXCache) HDel(key string, fields... string) error{
+func (cache *XXCache) HDel(key string, fields ...string) error {
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
 
 	v := cache.get(key)
 
-	if v == nil{
+	if v == nil {
 		return ErrKeyNotExist
 	}
 
 	if v, ok := v.(*CacheValueHash); ok {
-		for _, field := range fields{
+		for _, field := range fields {
 			delete(v.hash, field)
 			v.length--
 		}
 
-		if v.length == 0{
+		if v.length == 0 {
 			cache.delete(key)
 		}
 
@@ -77,7 +77,7 @@ func (cache *XXCache) HDel(key string, fields... string) error{
 	}
 }
 
-func (cache *XXCache)HSetNX(key, field, value string) error{
+func (cache *XXCache) HSetNX(key, field, value string) error {
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
 
@@ -91,9 +91,9 @@ func (cache *XXCache)HSetNX(key, field, value string) error{
 	}
 
 	if v, ok := v.(*CacheValueHash); ok {
-		if _, found := v.hash[field]; found{
+		if _, found := v.hash[field]; found {
 			return ErrHashFieldExist
-		}else{
+		} else {
 			v.hash[field] = value
 			v.length++
 			return nil

@@ -1,7 +1,6 @@
 package xxcache
 
 import (
-	"log"
 	"time"
 )
 
@@ -16,14 +15,13 @@ func (cache *XXCache) Get(key string) (string, error) {
 	defer cache.lock.Unlock()
 
 	v := cache.get(key)
-	if v == nil{
+	if v == nil {
 		return "", ErrKeyNotExist
 	}
 
-	log.Println(v)
-	if v,ok := v.(*CacheValueString); ok {
+	if v, ok := v.(*CacheValueString); ok {
 		return v.value, nil
-	}else {
+	} else {
 		return "", ErrKeyType
 	}
 }
@@ -34,15 +32,15 @@ func (cache *XXCache) Set(key, value string) error {
 	defer cache.lock.Unlock()
 
 	v := cache.get(key)
-	if v == nil{
-		v = &CacheValueString{value:value}
+	if v == nil {
+		v = &CacheValueString{value: value}
 		cache.set(key, v)
 	}
 
-	if v,ok := v.(*CacheValueString); ok{
+	if v, ok := v.(*CacheValueString); ok {
 		v.value = value
 		return nil
-	}else{
+	} else {
 		return ErrKeyType
 	}
 }
@@ -51,18 +49,19 @@ func (cache *XXCache) Set(key, value string) error {
 func (cache *XXCache) SetEX(key, value string, expire time.Duration) error {
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
-
+	//return cache.Set(key, value)
 	v := cache.get(key)
-	if v == nil{
+	if v == nil {
 		v = &CacheValueString{value: value}
-		cache.set(key, v)
+		cache.setWithExpire(key, v, expire)
+		return nil
 	}
 
-	if v, ok := v.(*CacheValueString); ok{
+	if v, ok := v.(*CacheValueString); ok {
 		v.value = value
 		cache.expire(key, expire)
 		return nil
-	}else{
+	} else {
 		return ErrKeyType
 	}
 }
@@ -74,15 +73,15 @@ func (cache *XXCache) SetEN(key, value string) error {
 
 	v := cache.get(key)
 
-	if v == nil{
+	if v == nil {
 		v = &CacheValueString{value: value}
 	}
 
-	if v, ok := v.(*CacheValueString); ok{
+	if v, ok := v.(*CacheValueString); ok {
 		v.value = value
 		cache.set(key, &v)
 		return nil
-	}else{
+	} else {
 		return ErrKeyType
 	}
 }
