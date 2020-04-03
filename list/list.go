@@ -1,103 +1,120 @@
 package list
 
 type List struct {
-	head   *node
-	tail   *node
-	length int
+	Head   *Node
+	Tail   *Node
+	Length int
 }
 
-type node struct {
-	prev  *node
-	next  *node
-	value string
-}
-
-func (node *node) Next() *node{
-	return node.next
-}
-
-func (node *node) Prev() *node{
-	return node.prev
-}
-
-func (node *node) Value() string{
-	return node.value
+type Node struct {
+	Prev  *Node
+	Next  *Node
+	Value interface{}
 }
 
 func New() *List{
-	tail := &node{}
-
-	head := &node{
-		next: tail,
-	}
-
-	tail.prev = head
-
 	return &List{
-		head:   head,
-		tail:   tail,
-		length: 0,
+		Head:   nil,
+		Tail:   nil,
+		Length: 0,
 	}
 }
 
-func (list *List) InsertPrev(position *node, value string) *node {
-	list.length++
-	
-	node := &node{
-		prev:  position.prev,
-		next:  position,
-		value: value,
+func (list *List) Empty(){
+	for list.Length > 0{
+		list.Head = list.Head.Next
+		list.Length--
+	}
+}
+
+func (list *List) InsertToHead(v interface{})  {
+	n := &Node{
+		Prev:  nil,
+		Next:  nil,
+		Value: v,
 	}
 
-	position.prev.next = node
-
-	position.prev = node
-
-	return node
+	if list.Length == 0{
+		list.Head, list.Tail = n, n
+	}else{
+		n.Next = list.Head
+		list.Head.Prev = n
+		list.Head = n
+	}
+	list.Length++
 }
 
-func (list *List) InsertNext(position *node, value string) *node {
-	list.length++
-
-	node := &node{
-		prev:  position,
-		next:  position.next,
-		value: value,
+func (list *List) InsertToTail(v interface{}) {
+	n := &Node{
+		Prev:  nil,
+		Next:  nil,
+		Value: v,
 	}
 
-	position.next.prev = node
-	
-	position.next = node
+	if list.Length == 0{
+		list.Head, list.Tail = n, n
+	}else{
+		n.Prev = list.Tail
+		list.Tail = n
+		list.Tail.Prev = n
+	}
 
-	return node
+	list.Length++
 }
 
-func (list *List) Remove(node *node) {
-	list.length--
+func (list *List)Insert(cur *Node, v interface{}, position int) {
+	if cur == nil{
+		return
+	}
 
-	node.prev.next = node.next
+	p := cur
+	for position != 0{
+		if position > 0{
+			if p.Next == nil{
+				break
+			}else{
+				p = p.Next
+				position--
+			}
+		}else if p.Prev != nil{
+			if p.Prev == nil{
+				break
+			}else {
+				p = p.Prev
+				position++
+			}
+		}
+	}
 
-	node.next.prev = node.prev
+	n := &Node{
+		Prev:  p,
+		Next:  nil,
+		Value: v,
+	}
+
+	if p.Next == nil{
+		p.Next, list.Tail = n, n
+	}else{
+		n.Next.Prev =  n
+		n.Next = p.Next
+		p.Next = n
+	}
+
+	list.Length++
 }
 
-func (list *List) Head() *node {
-	return list.head
+func (list *List) Delete(node *Node) {
+	if node.Prev != nil{
+		node.Prev.Next = node
+	}else{
+		list.Head = node.Next
+	}
+
+	if node.Next != nil{
+		node.Next.Prev = node.Prev
+	}else{
+		list.Tail = node.Prev
+	}
+
+	list.Length--
 }
-
-func (list *List) IsHead(node *node) bool {
-	return list.head == node
-}
-
-func (list *List)Tail() *node {
-	return list.tail
-}
-
-func (list *List)IsTail(node *node) bool {
-	return list.tail == node
-}
-
-func (list *List)Length() int{
-	return list.length
-}
-
-
