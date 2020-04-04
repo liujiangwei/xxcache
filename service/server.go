@@ -12,12 +12,19 @@ import (
 
 type Server struct {
 	listener                net.Listener
+
+	// for replication
 	master                  *connection.Connection
 	masterReplicationId     string
 	masterReplicationOffset int
+
+	// server config
 	pingMasterTimeInterval  time.Duration
+
+	// log
 	logger                  *logrus.Logger
 }
+
 
 func (server *Server) Start(address string) error {
 	listener, err := net.Listen("tcp", address)
@@ -62,7 +69,9 @@ func (server *Server) handle(conn *connection.Connection) {
 
 		commander := command.Convert(msg)
 
-		server.logger.Info("reply", conn.Reply(commander.Exec(server)))
+		if  err := conn.Reply(commander.Exec(server)); err != nil{
+			server.logger.Warn("reply", err)
+		}
 	}
 }
 
