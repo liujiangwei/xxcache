@@ -2,17 +2,21 @@ package command
 
 import (
 	"github.com/liujiangwei/xxcache/protocol"
-	"github.com/liujiangwei/xxcache/service"
 )
 
 type Commander interface {
 	Ping(string) string
+	Set(string, string) (string, error)
+	Get(string) (string, error)
 }
 
-type PingCommand struct {
-	args []protocol.Message
+type Handler func(commander Commander,args *protocol.ArrayMessage) protocol.Message
+
+type RedisCommand struct {
+	args    *protocol.ArrayMessage
+	handler Handler
 }
 
-func (cmd PingCommand) Exec(commander service.Commander) protocol.Message{
-	return protocol.SimpleStringMessage{Data:commander.Ping("a")}
+func (command *RedisCommand) Exec(commander Commander) protocol.Message{
+	return command.handler(commander, command.args)
 }

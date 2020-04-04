@@ -1,15 +1,16 @@
 package service
 
 import (
+	"github.com/liujiangwei/xxcache/command"
 	"github.com/liujiangwei/xxcache/connection"
-	"github.com/liujiangwei/xxcache/protocol"
 	"github.com/sirupsen/logrus"
 	"net"
 	"time"
 )
 
+
+
 type Server struct {
-	Commander
 	listener                net.Listener
 	master                  *connection.Connection
 	masterReplicationId     string
@@ -59,16 +60,11 @@ func (server *Server) handle(conn *connection.Connection) {
 			server.logger.Info(err)
 		}
 
-		handler, args := convertToHandler(msg)
-		if handler != nil{
-			conn.Reply(handler.Exec(server, args))
-		}else{
-			conn.Reply(ErrCommanderNotFoundMessage)
-		}
+		commander := command.Convert(msg)
+
+		server.logger.Info("reply", conn.Reply(commander.Exec(server)))
 	}
 }
-
-var ErrCommanderNotFoundMessage = protocol.SimpleStringMessage{Data: "command not found"}
 
 func (server *Server) Sync(address string) error {
 	if conn, err := connection.Connect(address); err != nil {
@@ -88,10 +84,10 @@ func (server *Server) Ping(message string) string{
 	return message
 }
 
-func (server *Server) Get(key string) string{
-	return key
+func (server *Server) Get(key string) (string, error){
+	return key, nil
 }
 
-func (server *Server)Set(key string, value string) string{
-	return "OK"
+func (server *Server)Set(key string, value string) (string, error){
+	return ReplyOk, nil
 }

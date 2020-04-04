@@ -8,7 +8,7 @@ import (
 
 func main() {
 	client := redis.NewClient(&redis.Options{})
-	client.Set("a", "b", 0)
+	client.Set("a", "b", 0).Result()
 
 	server := service.Server{}
 	log.Println(server.Start(":6379"))
