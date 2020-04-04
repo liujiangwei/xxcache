@@ -4,9 +4,10 @@ import (
 	"github.com/liujiangwei/xxcache/protocol"
 )
 
+//func (server *Server) Get(key entry.Key) (entry.StringEntry, error){
 type Commander interface {
 	Ping(string) string
-	Set(string, string) (string, error)
+	Set(string, string)
 	Get(string) (string, error)
 }
 

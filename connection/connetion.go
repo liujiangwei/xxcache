@@ -33,6 +33,10 @@ func (connection *Connection) Reply(message protocol.Message) error{
 	return err
 }
 
+func(connection *Connection)Close() error{
+	return connection.Conn.Close()
+}
+
 func New(conn net.Conn) *Connection {
 	return &Connection{
 		Conn:           conn,
