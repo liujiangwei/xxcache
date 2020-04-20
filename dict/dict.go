@@ -7,6 +7,8 @@ import (
 type Dict interface {
 	Get(interface{}) (interface{}, bool)
 	Set(interface{}, interface{})
+	Del(interface{})
+	Len() int
 }
 
 func Default() Dict{

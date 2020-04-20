@@ -2,34 +2,40 @@ package main
 
 import (
 	"github.com/go-redis/redis/v7"
-	"github.com/liujiangwei/xxcache/service"
+	"github.com/liujiangwei/xxcache/cache"
 	"log"
+	"sync"
 )
 
 func main() {
-	server := service.Server{}
+
+	server := cache.Cache{}
+
+	if err := server.Start(); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println(server.Sync(":6379"))
+
+	return
+	//log.Println(server.Get("a"))
+	num := 100
+	wg := sync.WaitGroup{}
+	wg.Add(num)
+
+	for i :=0; i < num; i++{
+		go func() {
+			defer wg.Done()
+			log.Println(server.Incr("int"))
+			log.Println(server.Incr("int"))
+		}()
+	}
+
+	wg.Wait()
+	log.Println(server.Incr("int"))
 
 	client := redis.NewClient(&redis.Options{})
 	client.Set("a", "b", 0).Result()
 	client.Set("a", server, 0)
 	client.Get("a").Result()
-
-	if err := server.Start(); err != nil{
-		log.Fatal(err)
-	}
-
-	if v, err := server.Get("a"); err != nil{
-		log.Println("ok, a is not set, return err")
-	}else{
-		log.Fatal("a", "=", v)
-	}
-
-	server.Set("a", "b")
-
-	if v, err := server.Get("a"); err == nil{
-		log.Println("a", "=", v)
-	}else{
-		log.Fatal("wrong, a is set, should return a")
-	}
-	log.Fatal(server.Listen(":6380"))
 }

@@ -1,9 +1,9 @@
 package command
 
-import "github.com/liujiangwei/xxcache/protocol"
+import (
+	"github.com/liujiangwei/xxcache/rconn"
+)
 
-func ErrWrongNumberOfArguments(cmd string) protocol.ErrorMessage {
-	return protocol.ErrorMessage{
-		Data: "ERR wrong number of arguments for '" + cmd + "' command",
-	}
+func ErrWrongNumberOfArguments(cmd string) rconn.ErrorMessage {
+	return rconn.ErrorMessage("ERR wrong number of arguments for '" + cmd + "' command")
 }

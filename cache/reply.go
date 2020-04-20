@@ -1,4 +1,4 @@
-package service
+package cache
 
 const ReplyOk = "OK"
 const ReplyPong = "PONG"

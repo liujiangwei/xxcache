@@ -1,4 +1,4 @@
-package service
+package cache
 
 type Option struct {
 	DatabaseSize int

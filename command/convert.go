@@ -1,30 +1,38 @@
 package command
 
 import (
-	"github.com/liujiangwei/xxcache/protocol"
+	"github.com/liujiangwei/xxcache/rconn"
 	"strings"
 )
 
-func Convert(message protocol.Message) RedisCommand {
-	var args protocol.ArrayMessage
+func Convert(message rconn.Message) RedisCommand {
+	var args rconn.ArrayMessage
 
-	if message, ok := message.(protocol.ArrayMessage); ok{
+	if message, ok := message.(rconn.ArrayMessage); ok{
 		args = message
 	}else{
-		args = protocol.ArrayMessage{Data:[]protocol.Message{message}}
+		args = []rconn.Message{message}
 	}
 
 	command := RedisCommand{
-		args: &args,
+		args: args,
 	}
 
-	if handler, ok := handlerMap[strings.ToUpper(args.Data[0].String())]; ok{
+	if handler, ok := handlerMap[strings.ToUpper(args[0].String())]; ok{
 		command.handler = handler
 	}else{
 		command.handler = notFound
 	}
 
 	return command
+}
+
+func ConvertToMessage(args ...string) rconn.Message{
+	msg := rconn.ArrayMessage{}
+	for _, arg := range args{
+		msg  = append(msg, rconn.NewBulkStringMessage(arg))
+	}
+	return msg
 }
 
 var handlerMap = map[string]Handler{
