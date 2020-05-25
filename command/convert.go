@@ -1,17 +1,17 @@
 package command
 
 import (
-	"github.com/liujiangwei/xxcache/rconn"
+	"github.com/liujiangwei/xxcache/redis"
 	"strings"
 )
 
-func Convert(message rconn.Message) RedisCommand {
-	var args rconn.ArrayMessage
+func Convert(message redis.Message) RedisCommand {
+	var args redis.ArrayMessage
 
-	if message, ok := message.(rconn.ArrayMessage); ok{
+	if message, ok := message.(redis.ArrayMessage); ok{
 		args = message
 	}else{
-		args = []rconn.Message{message}
+		args = []redis.Message{message}
 	}
 
 	command := RedisCommand{
@@ -27,10 +27,10 @@ func Convert(message rconn.Message) RedisCommand {
 	return command
 }
 
-func ConvertToMessage(args ...string) rconn.Message{
-	msg := rconn.ArrayMessage{}
+func ConvertToMessage(args ...string) redis.Message{
+	msg := redis.ArrayMessage{}
 	for _, arg := range args{
-		msg  = append(msg, rconn.NewBulkStringMessage(arg))
+		msg  = append(msg, redis.NewBulkStringMessage(arg))
 	}
 	return msg
 }

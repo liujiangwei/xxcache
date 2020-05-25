@@ -2,14 +2,7 @@ package lzf
 
 import "log"
 
-//import "C"
-
 //https://segmentfault.com/a/1190000011425787
-func Compress(raw string)string {
-	//length := len(raw)
-	return ""
-}
-
 func DeCompress(compressed string) string {
 	cl := len(compressed)
 	if cl == 0 {
@@ -61,4 +54,38 @@ func DeCompress(compressed string) string {
 	}
 	log.Println(compressed,string(raw))
 	return string(raw)
+}
+
+func Compress(raw string)string  {
+	length := len(raw)
+	if length == 1{
+		return raw
+	}
+
+	return raw
+	var ip = 0
+	val := (raw[ip] << 8) | raw[ip+1]
+
+	for ip < length-2{
+		val = val << 8 | raw[ip+2]
+		slot
+	}
+}
+
+const HSize = 1 << HLog
+const HLog = 16
+func IDX(n uint) uint{
+	a :=  ((n >> (3 *8-HLog))-n ) & (HSize -1)
+
+	return a
+}
+
+func Next() {
+	
+}
+
+func First(b []byte) byte{
+	a :=  b[0] << 8 | b[1]
+
+	return a
 }

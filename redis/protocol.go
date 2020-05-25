@@ -1,4 +1,4 @@
-package rconn
+package redis
 
 import (
 	"strconv"
@@ -21,6 +21,7 @@ const ProtocolError = protocol('-')
 type Message interface {
 	String() string
 	Serialize() string
+	Protocol() protocol
 }
 
 //type Protocol struct {
@@ -39,24 +40,28 @@ var OK = SimpleStringMessage("OK")
 // redis error message
 type ArrayMessage []Message
 
-func(messages ArrayMessage)String()string{
+func(message ArrayMessage)String()string{
 	var str []string
 
-	for _, m := range messages{
+	for _, m := range message {
 		str = append(str, m.String())
 	}
 
 	return strings.Join(str, "")
 }
 
-func(messages ArrayMessage)Serialize()string{
-	str := string(ProtocolArray) + strconv.Itoa(len(messages)) + MessageEOF
+func(message ArrayMessage)Serialize()string{
+	str := string(ProtocolArray) + strconv.Itoa(len(message)) + MessageEOF
 
-	for _, m := range messages{
+	for _, m := range message {
 		str += m.Serialize()
 	}
 
 	return str
+}
+
+func (message ArrayMessage) Protocol() protocol{
+	return ProtocolArray
 }
 
 
@@ -84,6 +89,10 @@ func(message bulkStringMessage)Serialize()string{
 	return str
 }
 
+func (message bulkStringMessage)Protocol() protocol{
+	return ProtocolBulkString
+}
+
 func NewBulkStringMessage(str string) *bulkStringMessage {
 	return &bulkStringMessage{
 		string: str,
@@ -109,15 +118,24 @@ func(message ErrorMessage)Serialize()string{
 	return string(ProtocolError) + string(message) + MessageEOF
 }
 
+func (message ErrorMessage) Protocol() protocol{
+	return ProtocolError
+}
+
 // redis int message
 type IntMessage int
 
 func(message IntMessage)String()string{
 	return strconv.Itoa(int(message))
 }
+
 func(message IntMessage)Serialize()string{
 	return string(ProtocolInt) + strconv.Itoa(int(message)) + MessageEOF
 }
+func (message IntMessage) Protocol() protocol{
+	return ProtocolInt
+}
+
 
 type SimpleStringMessage string
 
@@ -127,4 +145,8 @@ func(message SimpleStringMessage)String()string{
 
 func(message SimpleStringMessage)Serialize()string{
 	return string(ProtocolSimpleString) + string(message) + MessageEOF
+}
+
+func (message SimpleStringMessage)Protocol() protocol {
+	return ProtocolSimpleString
 }

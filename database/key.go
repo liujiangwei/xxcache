@@ -1,4 +1,4 @@
-package entry
+package database
 
 type Key interface {
 

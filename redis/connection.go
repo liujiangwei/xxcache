@@ -1,4 +1,4 @@
-package rconn
+package redis
 
 import (
 	"bufio"
@@ -30,7 +30,7 @@ func (c *Connection) Close() error {
 	return c.conn.Close()
 }
 
-func New(conn net.Conn) *Connection {
+func NewConn(conn net.Conn) *Connection {
 	return &Connection{
 		conn:   conn,
 		Reader: bufio.NewReader(conn),
@@ -45,7 +45,7 @@ func Connect(address string) (*Connection, error) {
 		return nil, err
 	}
 
-	return New(conn), nil
+	return NewConn(conn), nil
 }
 
 func (c Connection) RecvToFile(file string) (int64, error) {

@@ -1,33 +1,26 @@
 package main
 
 import (
+	"github.com/liujiangwei/xxcache"
 	"log"
 )
 
-type Greeting func(name string)
-
-func (g Greeting) English(name string){
-	g("hello, " + name)
-}
-
-func (g Greeting) Chinese(name string){
-	g("你好，" + name)
-}
-
-type Person struct {
-	Greeting
-}
-
 func main() {
-	p := new(Person)
-	p.Greeting = func(name string) {
-		log.Println("before")
+	//client := redis.NewClient(&redis.Options{})
+	//client.Get("a")
+	//client.Ping().Result()
+	//client.config
 
-		log.Println(name)
+	cache, err  := xxcache.New(xxcache.Option{
+		Addr:"localhost:6379",
+	})
 
-		log.Println("after")
+	if err != nil{
+		log.Println(err)
 	}
 
-	p.Chinese("小王")
-	p.English("jack")
+	cache.Sync()
+
+	cache.Info("a")
+	//cache.Sync()
 }

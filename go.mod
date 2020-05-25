@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/cornelk/hashmap v1.0.1
+	github.com/go-ini/ini v1.56.0
 	github.com/go-redis/redis/v7 v7.2.0
 	github.com/sirupsen/logrus v1.5.0
 	golang.org/x/tools v0.0.0-20200304024140-c4206d458c3f

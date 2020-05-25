@@ -1,10 +1,10 @@
 package command
 
 import (
-	"github.com/liujiangwei/xxcache/rconn"
+	"github.com/liujiangwei/xxcache/redis"
 )
 
-func Set(commander Commander, args rconn.ArrayMessage) rconn.Message{
+func Set(commander Commander, args redis.ArrayMessage) redis.Message{
 	if len(args) != 3{
 		return ErrWrongNumberOfArguments("set")
 	}
@@ -14,10 +14,10 @@ func Set(commander Commander, args rconn.ArrayMessage) rconn.Message{
 
 	commander.Set(key, value)
 
-	return rconn.OK
+	return redis.OK
 }
 
-func Get(commander Commander, args rconn.ArrayMessage) rconn.Message{
+func Get(commander Commander, args redis.ArrayMessage) redis.Message{
 	if len(args) == 1 || len(args) > 2{
 		return ErrWrongNumberOfArguments("get")
 	}
@@ -29,11 +29,11 @@ func Get(commander Commander, args rconn.ArrayMessage) rconn.Message{
 
 	if value, err := commander.Get(key); err != nil{
 		if value == ""{
-			return rconn.ErrorMessage(err.Error())
+			return redis.ErrorMessage(err.Error())
 		}else{
-			return rconn.Nil
+			return redis.Nil
 		}
 	}else{
-		return rconn.NewBulkStringMessage(value)
+		return redis.NewBulkStringMessage(value)
 	}
 }

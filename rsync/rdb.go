@@ -8,13 +8,13 @@ import (
 	"fmt"
 	"github.com/liujiangwei/xxcache/lzf"
 	"github.com/liujiangwei/xxcache/obj"
-	"github.com/liujiangwei/xxcache/rconn"
+	"github.com/liujiangwei/xxcache/redis"
 	"log"
 )
 
 func NewRdbClient(addr string) (*Client, error){
 	client := new(Client)
-	con, err := rconn.Connect(addr)
+	con, err := redis.Connect(addr)
 	if  err != nil{
 		return nil, err
 	}
@@ -26,7 +26,7 @@ func NewRdbClient(addr string) (*Client, error){
 
 type Client struct {
 	addr string
-	*rconn.Connection
+	*redis.Connection
 }
 
 // 0000 0
@@ -249,7 +249,7 @@ func (client *Client) LoadString() (*obj.StringObj, error){
 //
 //		val = stringo(bs[0] | (bs[1]<< 8 | bs[2]<< 16 | bs[3] << 24))
 //	default:
-//		return "", errors.New("error enctype")
+//		return "", errors.NewConn("error enctype")
 //	}
 //
 //	var plain = flags & RDB_LOAD_PLAIN

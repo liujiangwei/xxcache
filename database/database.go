@@ -1,4 +1,4 @@
-package entry
+package database
 
 import (
 	"github.com/liujiangwei/xxcache/dict"
@@ -19,7 +19,7 @@ func NewDatabase(d dict.Dict) *Database {
 	}
 }
 
-func (db *Database) Get(key string) (interface{}, bool) {
+func (db *Database) Get(key string) (Entry, bool) {
 	v, ok := db.dict.Get(key)
 
 	if ok && db.keyIsExpired(key) {

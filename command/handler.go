@@ -1,10 +1,10 @@
 package command
 
 import (
-	"github.com/liujiangwei/xxcache/rconn"
+	"github.com/liujiangwei/xxcache/redis"
 )
 
-func notFound(commander Commander, args rconn.ArrayMessage) rconn.Message{
+func notFound(commander Commander, args redis.ArrayMessage) redis.Message{
 	if len(args) >= 1{
 		return ErrWrongNumberOfArguments(args[0].String())
 	}
@@ -12,7 +12,7 @@ func notFound(commander Commander, args rconn.ArrayMessage) rconn.Message{
 	return ErrWrongNumberOfArguments("")
 }
 
-func Ping(commander Commander, args rconn.ArrayMessage) rconn.Message{
+func Ping(commander Commander, args redis.ArrayMessage) redis.Message{
 	var message string
 
 	if len(args) > 2{
@@ -25,9 +25,9 @@ func Ping(commander Commander, args rconn.ArrayMessage) rconn.Message{
 
 	var reply = commander.Ping(message)
 	if message == ""{
-		return rconn.SimpleStringMessage(reply)
+		return redis.SimpleStringMessage(reply)
 	}else{
-		return rconn.NewBulkStringMessage(reply)
+		return redis.NewBulkStringMessage(reply)
 	}
 
 }
