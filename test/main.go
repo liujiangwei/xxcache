@@ -1,26 +1,50 @@
 package main
 
 import (
+	"github.com/go-redis/redis/v7"
 	"github.com/liujiangwei/xxcache"
-	"log"
+	"github.com/sirupsen/logrus"
+	"strconv"
 )
 
 func main() {
-	//client := redis.NewClient(&redis.Options{})
-	//client.Get("a")
-	//client.Ping().Result()
-	//client.config
+	testData()
 
 	cache, err  := xxcache.New(xxcache.Option{
 		Addr:"localhost:6379",
 	})
 
 	if err != nil{
-		log.Println(err)
+		logrus.Warnln(err)
 	}
 
-	cache.Sync()
-
-	cache.Info("a")
+	logrus.Infoln(cache.SyncWithRedis())
 	//cache.Sync()
+}
+
+func testData() {
+	client := redis.NewClient(&redis.Options{})
+
+	for i := 0; i< 10; i++{
+		client.Set(strconv.Itoa(i), i, 0)
+	}
+
+	for i := 0; i< 10; i++{
+		client.LPush("list", i)
+	}
+
+	for i := 0; i< 10; i++{
+		client.ZAdd("zset", &redis.Z{
+			Score:float64(i),
+			Member:i,
+		})
+	}
+
+	for i := 0; i< 10; i++{
+		client.SAdd("set", i)
+	}
+
+	for i := 0; i< 10; i++{
+		client.HSet("hash", i, i)
+	}
 }

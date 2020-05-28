@@ -18,7 +18,7 @@ func NewRdbClient(addr string) (*Client, error){
 	if  err != nil{
 		return nil, err
 	}
-	client.Connection = con
+	client.Conn = con
 
 	return client, nil
 }
@@ -26,7 +26,7 @@ func NewRdbClient(addr string) (*Client, error){
 
 type Client struct {
 	addr string
-	*redis.Connection
+	*redis.Conn
 }
 
 // 0000 0
@@ -90,7 +90,7 @@ func (client *Client)LoadLen() (length uint64, encoded bool, err error){
 		err = errors.New(fmt.Sprintf("Unknown length encoding %d in rdbLoadLen()", dt))
 	}
 
-	return
+	return length, encoded, err
 }
 
 const RDB_TYPE_STRING = 0

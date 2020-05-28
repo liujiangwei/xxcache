@@ -5,27 +5,27 @@ import (
 	"strings"
 )
 
-type protocol byte
+type Protocol byte
 
 //字符串：以 $ 开始  $-1\r\n
-const ProtocolBulkString = protocol('$')
+const ProtocolBulkString = Protocol('$')
 // 简单字符串：以"+" 开始， 如："+OK\r\n"
-const ProtocolSimpleString = protocol('+')
+const ProtocolSimpleString = Protocol('+')
 //整数：以":"开始，如：":1\r\n"
-const ProtocolInt = protocol(':')
+const ProtocolInt = Protocol(':')
 //数组：以 * 开始
-const ProtocolArray = protocol('*')
+const ProtocolArray = Protocol('*')
 //错误：以"-" 开始，如："-ERR Invalid Synatx\r\n"
-const ProtocolError = protocol('-')
+const ProtocolError = Protocol('-')
 
 type Message interface {
 	String() string
 	Serialize() string
-	Protocol() protocol
+	Protocol() Protocol
 }
 
 //type Protocol struct {
-//	protocol protocol
+//	Protocol Protocol
 //	length   int
 //	data     []byte
 //	eof      string
@@ -34,8 +34,8 @@ type Message interface {
 
 
 var Nil = NewNilMessage()
-
 var OK = SimpleStringMessage("OK")
+var PONG = SimpleStringMessage("PONG")
 
 // redis error message
 type ArrayMessage []Message
@@ -60,7 +60,7 @@ func(message ArrayMessage)Serialize()string{
 	return str
 }
 
-func (message ArrayMessage) Protocol() protocol{
+func (message ArrayMessage) Protocol() Protocol {
 	return ProtocolArray
 }
 
@@ -89,7 +89,7 @@ func(message bulkStringMessage)Serialize()string{
 	return str
 }
 
-func (message bulkStringMessage)Protocol() protocol{
+func (message bulkStringMessage)Protocol() Protocol {
 	return ProtocolBulkString
 }
 
@@ -118,7 +118,7 @@ func(message ErrorMessage)Serialize()string{
 	return string(ProtocolError) + string(message) + MessageEOF
 }
 
-func (message ErrorMessage) Protocol() protocol{
+func (message ErrorMessage) Protocol() Protocol {
 	return ProtocolError
 }
 
@@ -132,7 +132,7 @@ func(message IntMessage)String()string{
 func(message IntMessage)Serialize()string{
 	return string(ProtocolInt) + strconv.Itoa(int(message)) + MessageEOF
 }
-func (message IntMessage) Protocol() protocol{
+func (message IntMessage) Protocol() Protocol {
 	return ProtocolInt
 }
 
@@ -147,6 +147,6 @@ func(message SimpleStringMessage)Serialize()string{
 	return string(ProtocolSimpleString) + string(message) + MessageEOF
 }
 
-func (message SimpleStringMessage)Protocol() protocol {
+func (message SimpleStringMessage)Protocol() Protocol {
 	return ProtocolSimpleString
 }

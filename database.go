@@ -6,16 +6,16 @@ type Database struct {
 	dict hashmap.HashMap
 }
 
-func (db *Database)Get(key string) *Entry{
+func (db *Database) Get(key string) *Entry {
 	value, ok := db.dict.Get(key)
-	if !ok{
+	if !ok {
 		return nil
 	}
 
 	return value.(*Entry)
 }
 
-func (db *Database)Set(key string, entry *Entry)  {
+func (db *Database) Set(key string, entry *Entry) {
 	db.dict.Set(key, entry)
 }
 
@@ -30,6 +30,6 @@ const (
 )
 
 type Entry struct {
-	t T
+	t    T
 	data interface{}
 }

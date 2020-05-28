@@ -4,67 +4,51 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"net"
-	"os"
 	"strconv"
 )
 
-type Connection struct {
+type Conn struct {
 	conn   net.Conn
 	Reader *bufio.Reader
 	Writer *bufio.Writer
 }
 
-func (c *Connection) Recv() (Message, error) {
-	return c.ReadMessage()
+func (c *Conn) Recv() (Message, error) {
+	return c.readMessage()
 }
 
-func (c *Connection) Send(message Message) error {
+func (c *Conn) send(message Message) error {
 	_, err := c.Writer.Write([]byte(message.Serialize()))
-	c.Writer.Flush()
 
-	return err
-}
-
-func (c *Connection) Close() error {
-	return c.conn.Close()
-}
-
-func NewConn(conn net.Conn) *Connection {
-	return &Connection{
-		conn:   conn,
-		Reader: bufio.NewReader(conn),
-		Writer: bufio.NewWriter(conn),
+	if err != nil{
+		return  err
 	}
+
+	return c.Writer.Flush()
 }
 
-func Connect(address string) (*Connection, error) {
-	conn, err := net.Dial("tcp", address)
-
-	if err != nil {
+func (c *Conn) Send(message Message) (Message, error){
+	if err := c.send(message); err != nil{
 		return nil, err
 	}
 
-	return NewConn(conn), nil
+	return c.Recv()
 }
 
-func (c Connection) RecvToFile(file string) (int64, error) {
-	fp, err := os.OpenFile(file, os.O_CREATE, os.ModeAppend)
-	if err != nil {
-		return 0, err
-	}
-
-	return c.Reader.WriteTo(fp)
+func (c *Conn) Close() error {
+	return c.conn.Close()
 }
 
-// protocol length
-func (c Connection) ReadProtocol() (protocol, error) {
+// Protocol length
+func (c Conn) readProtocol() (Protocol, error) {
 	var p byte
 	p, err := c.Reader.ReadByte()
-	return protocol(p), err
+	return Protocol(p), err
 }
 
-func (c Connection) readBulkString(length int) string {
+func (c Conn) readBulkString(length int) string {
 	if length > 0 {
 		var data = make([]byte, length)
 		_, err := c.Reader.Read(data)
@@ -79,14 +63,86 @@ func (c Connection) readBulkString(length int) string {
 	return ""
 }
 
-func (c Connection) DiscardEof() error {
+func (c Conn) discardEof() error {
 	_, _, err := c.Reader.ReadLine()
 
 	return err
 }
 
-func (c Connection) ReadMessage() (Message, error) {
-	protocol, err := c.ReadProtocol()
+// save message content to io reader
+func (c Conn) ReadWithWriter(writer io.Writer) (Protocol, int, error){
+	protocol, err := c.readProtocol()
+	if err != nil{
+		return protocol, 0, err
+	}
+
+	buf := bufio.NewWriter(writer)
+
+	defer func() {
+		_ = buf.Flush()
+	}()
+
+	switch protocol {
+	case ProtocolBulkString:
+		bs, _, err := c.Reader.ReadLine()
+		if err != nil {
+			return ProtocolBulkString, 0, err
+		}
+
+		// get length
+		length, err := strconv.Atoi(string(bs))
+		if err != nil {
+			return ProtocolBulkString, 0, err
+		}
+
+		for i :=0; i< length; i++{
+			b, err := c.Reader.ReadByte()
+			if err != nil{
+				return ProtocolBulkString, 0,  err
+			}
+			if err := buf.WriteByte(b); err != nil{
+				return ProtocolBulkString, 0, err
+			}
+		}
+
+		return ProtocolBulkString, length, nil
+	case ProtocolSimpleString:
+		line, _, err := c.Reader.ReadLine()
+		if err != nil {
+			return ProtocolSimpleString, 0, err
+		}
+		n, err := buf.Write(line)
+
+		return ProtocolSimpleString, n, err
+	case ProtocolError:
+		line, _, err := c.Reader.ReadLine()
+		if err != nil {
+			return ProtocolError, 0, err
+		}
+		n, err := buf.Write(line)
+		return ProtocolError, n, err
+	case ProtocolInt:
+		line, _, err := c.Reader.ReadLine()
+		if err != nil {
+			return ProtocolInt, 0, err
+		}
+		n, err := buf.Write(line)
+		return ProtocolInt, n, err
+	case ProtocolArray:
+		line, _, err := c.Reader.ReadLine()
+		if err != nil {
+			return ProtocolArray, 0 , err
+		}
+
+		number, err := strconv.Atoi(string(line))
+		return ProtocolArray, number, err
+	default:
+		return protocol, 0, errors.New("unknown protocol")
+	}
+}
+
+func (c Conn) readMessage() (Message, error) {
+	protocol, err := c.readProtocol()
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +166,7 @@ func (c Connection) ReadMessage() (Message, error) {
 			return nil, err
 		}
 
-		if err := c.DiscardEof(); err != nil {
+		if err := c.discardEof(); err != nil {
 			return nil, err
 		}
 
@@ -153,7 +209,7 @@ func (c Connection) ReadMessage() (Message, error) {
 
 		var messages ArrayMessage
 		for i := 0; i < number; i++ {
-			if message, err := c.ReadMessage(); err != nil {
+			if message, err := c.readMessage(); err != nil {
 				return nil, err
 			} else {
 				messages = append(messages, message)
@@ -162,6 +218,26 @@ func (c Connection) ReadMessage() (Message, error) {
 
 		return messages, nil
 	default:
-		return nil, errors.New(fmt.Sprintf("[%s]", string(protocol)))
+		return nil, errors.New("unknown protocol " + fmt.Sprintf("[%s]", string(protocol)))
 	}
+}
+
+
+
+func NewConn(conn net.Conn) *Conn {
+	return &Conn{
+		conn:   conn,
+		Reader: bufio.NewReader(conn),
+		Writer: bufio.NewWriter(conn),
+	}
+}
+
+func Connect(address string) (*Conn, error) {
+	conn, err := net.Dial("tcp", address)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return NewConn(conn), nil
 }

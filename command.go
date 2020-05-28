@@ -8,7 +8,9 @@ import (
 type Command interface {
 	Serialize() redis.Message
 
-	ParseResponse(message redis.Message) error
+	ParseResponse(message redis.Message)
+
+	WithError(err error)
 }
 
 type BaseCommand struct {
@@ -21,6 +23,10 @@ func (cmd BaseCommand) Serialize() redis.Message {
 	return redis.ConvertToMessage(cmd.args...)
 }
 
+func (cmd BaseCommand) WithError(err error) {
+	cmd.err = err
+}
+
 func NewBaseCommand(args ...string) BaseCommand{
 	return BaseCommand{
 		args:  args,
@@ -29,20 +35,13 @@ func NewBaseCommand(args ...string) BaseCommand{
 	}
 }
 
-
 type StringCommand struct {
 	BaseCommand
 	val string
 }
 
-func (cmd *StringCommand) ParseResponse(message redis.Message) error{
+func (cmd *StringCommand) ParseResponse(message redis.Message){
 	cmd.val = message.String()
-
-	return nil
-}
-
-func (cmd *StringCommand) Result() string{
-	return cmd.val
 }
 
 func NewStringCommand(args ...string) StringCommand{
@@ -51,33 +50,28 @@ func NewStringCommand(args ...string) StringCommand{
 	}
 }
 
-
-// string string map
+// for command return ArrayMessage
 type StringStringCommand struct {
 	BaseCommand
 	val map[string]string
 }
 
-func (cmd *StringStringCommand) ParseResponse(message redis.Message) error{
+func (cmd *StringStringCommand) ParseResponse(message redis.Message){
 	messages, ok := message.(redis.ArrayMessage)
 	if !ok{
-		return errors.New("failed to parse response")
+		cmd.err = errors.New("failed to parse response")
+		return
 	}
 
 	if len(messages) % 2 != 0{
-		return errors.New("failed to parse response")
+		cmd.err = errors.New("failed to parse response")
+		return
 	}
 
 	cmd.val = make(map[string]string, len(messages) / 2)
 	for id := 0; id < len(messages);  id += 2{
 		cmd.val[messages[id].String()] = messages[id + 1].String()
 	}
-
-	return nil
-}
-
-func (cmd *StringStringCommand)Result() map[string]string{
-	return cmd.val
 }
 
 // map[string]string
@@ -88,3 +82,23 @@ func NewStringStringCommand(args ...string) StringStringCommand{
 	}
 }
 
+
+// for command return -OK
+type OKCommand struct {
+	BaseCommand
+	ok bool
+	val string
+}
+
+func (cmd *OKCommand) ParserResponse(message redis.Message){
+	m, ok := message.(redis.SimpleStringMessage)
+	if !ok{
+		cmd.err = errors.New("failed parse redis data")
+	}
+
+	if m.String() != "OK"{
+		cmd.err = errors.New(m.String())
+	}
+
+	cmd.ok = true
+}

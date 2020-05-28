@@ -1,38 +1,37 @@
 package redis
 
 import (
-"bytes"
-"github.com/go-ini/ini"
-"strings"
+	"bytes"
+	"github.com/go-ini/ini"
+	"strings"
 )
 
-func ParseInfo(rawStr string) (redisInfo *Info, err error){
+func ParseInfo(rawStr string) (redisInfo *Info, err error) {
 	file := ini.Empty()
 	rawBuf := bytes.NewBuffer([]byte(rawStr))
 	var lines []string
-
 	var line []byte
 	for {
-		if line, err = rawBuf.ReadBytes('\n'); err != nil{
+		if line, err = rawBuf.ReadBytes('\n'); err != nil {
 			break // io.EOF return
 		}
 
 		str := strings.TrimSpace(string(line))
-		if str == ""{
+		if str == "" {
 			continue
 		}
 
-		if str[0] == '#'{
+		if str[0] == '#' {
 			line := bytes.TrimSpace(line[1:])
-			lines = append(lines, "[" + strings.ToLower(string(line)) + "]")
+			lines = append(lines, "["+strings.ToLower(string(line))+"]")
 			continue
 		}
 
 		lines = append(lines, strings.Replace(str, ":", "=", 1))
 	}
 
-	file , err = ini.Load([]byte(strings.Join(lines, "\n")))
-	if err != nil{
+	file, err = ini.Load([]byte(strings.Join(lines, "\n")))
+	if err != nil {
 		return nil, err
 	}
 
@@ -40,7 +39,7 @@ func ParseInfo(rawStr string) (redisInfo *Info, err error){
 	repl.parse(file.Section("replication"))
 
 	return &Info{
-		Replication:repl,
+		Replication: repl,
 	}, nil
 }
 
@@ -62,9 +61,9 @@ type Replication struct {
 }
 
 func (repl *Replication) parse(section *ini.Section) {
-	repl.Role =  section.Key("role").MustString("master")
+	repl.Role = section.Key("role").MustString("master")
 	repl.ConnectedSlaves = section.Key("connected_slaves").MustInt(0)
-	repl.MasterReplicationId =  section.Key("master_replid").MustString("")
+	repl.MasterReplicationId = section.Key("master_replid").MustString("")
 	repl.MasterReplicationId2 = section.Key("master_replid2").MustString("")
 	repl.MasterReplOffset = section.Key("master_repl_offset").MustInt(0)
 	repl.SecondReplOffset = section.Key("second_repl_offset").MustInt(-1)
