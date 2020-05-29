@@ -12,7 +12,7 @@ type Node struct {
 	Value interface{}
 }
 
-func New() *List{
+func New() *List {
 	return &List{
 		Head:   nil,
 		Tail:   nil,
@@ -20,23 +20,23 @@ func New() *List{
 	}
 }
 
-func (list *List) Empty(){
-	for list.Length > 0{
+func (list *List) Empty() {
+	for list.Length > 0 {
 		list.Head = list.Head.Next
 		list.Length--
 	}
 }
 
-func (list *List) InsertToHead(v interface{})  {
+func (list *List) InsertToHead(v interface{}) {
 	n := &Node{
 		Prev:  nil,
 		Next:  nil,
 		Value: v,
 	}
 
-	if list.Length == 0{
+	if list.Length == 0 {
 		list.Head, list.Tail = n, n
-	}else{
+	} else {
 		n.Next = list.Head
 		list.Head.Prev = n
 		list.Head = n
@@ -51,9 +51,9 @@ func (list *List) InsertToTail(v interface{}) {
 		Value: v,
 	}
 
-	if list.Length == 0{
+	if list.Length == 0 {
 		list.Head, list.Tail = n, n
-	}else{
+	} else {
 		n.Prev = list.Tail
 		list.Tail = n
 		list.Tail.Prev = n
@@ -62,24 +62,24 @@ func (list *List) InsertToTail(v interface{}) {
 	list.Length++
 }
 
-func (list *List)Insert(cur *Node, v interface{}, position int) {
-	if cur == nil{
+func (list *List) Insert(cur *Node, v interface{}, position int) {
+	if cur == nil {
 		return
 	}
 
 	p := cur
-	for position != 0{
-		if position > 0{
-			if p.Next == nil{
+	for position != 0 {
+		if position > 0 {
+			if p.Next == nil {
 				break
-			}else{
+			} else {
 				p = p.Next
 				position--
 			}
-		}else if p.Prev != nil{
-			if p.Prev == nil{
+		} else if p.Prev != nil {
+			if p.Prev == nil {
 				break
-			}else {
+			} else {
 				p = p.Prev
 				position++
 			}
@@ -92,10 +92,10 @@ func (list *List)Insert(cur *Node, v interface{}, position int) {
 		Value: v,
 	}
 
-	if p.Next == nil{
+	if p.Next == nil {
 		p.Next, list.Tail = n, n
-	}else{
-		n.Next.Prev =  n
+	} else {
+		n.Next.Prev = n
 		n.Next = p.Next
 		p.Next = n
 	}
@@ -104,15 +104,15 @@ func (list *List)Insert(cur *Node, v interface{}, position int) {
 }
 
 func (list *List) Delete(node *Node) {
-	if node.Prev != nil{
+	if node.Prev != nil {
 		node.Prev.Next = node
-	}else{
+	} else {
 		list.Head = node.Next
 	}
 
-	if node.Next != nil{
+	if node.Next != nil {
 		node.Next.Prev = node.Prev
-	}else{
+	} else {
 		list.Tail = node.Prev
 	}
 

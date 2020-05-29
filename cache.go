@@ -153,7 +153,7 @@ func (cache *Cache) SyncWithRedis() error {
 
 			logrus.Infoln("succeed to save the rdb to", rdb)
 
-			if err := cache.loadRdb(rdb); err != nil{
+			if err := cache.loadRdb(rdb); err != nil {
 				return err
 			}
 		}
@@ -179,7 +179,7 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 	}
 	// start to load rdb file
 	var opCode uint
-	for err == nil{
+	for err == nil {
 		// load op code first
 		if opCode, err = rdb.LoadOpCode(buf); err != nil {
 			return err
@@ -260,20 +260,20 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 		default:
 			// this is key value pair
 			var key string
-			if key, err = rdb.LoadString(buf); err != nil{
+			if key, err = rdb.LoadString(buf); err != nil {
 				return err
 			}
 			// opCode is object type
 			switch opCode {
 			case rdb.TypeString:
 				var value string
-				if value, err = rdb.LoadString(buf); err != nil{
+				if value, err = rdb.LoadString(buf); err != nil {
 					return err
 				}
 				logrus.Infoln("TypeString", key, value)
 			case rdb.TypeList:
 				var length uint64
-				if length, _, err = rdb.LoadLen(buf); err != nil{
+				if length, _, err = rdb.LoadLen(buf); err != nil {
 					return err
 				}
 				var value string
@@ -286,7 +286,7 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 				}
 			case rdb.TypeSet:
 				var length uint64
-				if length, _, err = rdb.LoadLen(buf); err != nil{
+				if length, _, err = rdb.LoadLen(buf); err != nil {
 					return err
 				}
 				var value string
@@ -299,7 +299,7 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 				}
 			case rdb.TypeZSet, rdb.TypeZSet2:
 				var length uint64
-				if length, _, err = rdb.LoadLen(buf); err != nil{
+				if length, _, err = rdb.LoadLen(buf); err != nil {
 					return err
 				}
 				var value string
@@ -308,13 +308,13 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 					if value, err = rdb.LoadString(buf); err != nil {
 						return err
 					}
-					if opCode == rdb.TypeZSet2{
-						if score, err = rdb.LoadBinaryDouble(buf); err != nil{
+					if opCode == rdb.TypeZSet2 {
+						if score, err = rdb.LoadBinaryDouble(buf); err != nil {
 							return err
 						}
 						logrus.Infoln("TypeZSet2", key, score, value)
-					}else{
-						if score, err  = rdb.LoadDouble(buf); err != nil{
+					} else {
+						if score, err = rdb.LoadDouble(buf); err != nil {
 							return err
 						}
 						logrus.Infoln("TypeZSet", key, score, value)
@@ -322,7 +322,7 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 				}
 			case rdb.TypeHash:
 				var length uint64
-				if length, _, err = rdb.LoadLen(buf); err != nil{
+				if length, _, err = rdb.LoadLen(buf); err != nil {
 					return err
 				}
 				var field, value string
@@ -338,7 +338,7 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 				}
 			case rdb.TypeListQuickList:
 				var length uint64
-				if length, _, err = rdb.LoadLen(buf); err != nil{
+				if length, _, err = rdb.LoadLen(buf); err != nil {
 					return err
 				}
 				var value string
@@ -350,13 +350,13 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 				}
 			case rdb.TypeHashZipMap, rdb.TypeListZipList, rdb.TypeSetIntSet, rdb.TypeZSetZipList, rdb.TypeHashZipList:
 				var str string
-				if str, err = rdb.LoadString(buf); err != nil{
+				if str, err = rdb.LoadString(buf); err != nil {
 					return err
 				}
-				logrus.Infoln("Encode",key,  str)
+				logrus.Infoln("Encode", key, str)
 			case rdb.TypeStreamListPacks:
 				var length uint64
-				if length, _, err = rdb.LoadLen(buf); err != nil{
+				if length, _, err = rdb.LoadLen(buf); err != nil {
 					return err
 				}
 

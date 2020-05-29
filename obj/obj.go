@@ -1,8 +1,9 @@
 package obj
 
 type objT uint
+
 const (
-	String objT =iota
+	String objT = iota
 	Hash
 	Set
 	ZSet
@@ -10,11 +11,11 @@ const (
 )
 
 type Obj struct {
-	t objT
+	t   objT
 	val interface{}
 }
 
-func NewStringObj(o *StringObj) *Obj{
+func NewStringObj(o *StringObj) *Obj {
 	return &Obj{
 		t:   String,
 		val: o,

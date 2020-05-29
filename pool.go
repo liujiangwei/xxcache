@@ -52,7 +52,7 @@ func (pool *Pool) ExecCommand(ctx context.Context, command Command) {
 
 type ExecHandler func(conn *redis.Conn) error
 
-func (pool *Pool) Exec(ctx context.Context, handler ExecHandler) error{
+func (pool *Pool) Exec(ctx context.Context, handler ExecHandler) error {
 	select {
 	case conn := <-pool.conn:
 		defer func() { pool.conn <- conn }()

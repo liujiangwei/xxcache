@@ -22,15 +22,15 @@ func (c *Conn) Recv() (Message, error) {
 func (c *Conn) send(message Message) error {
 	_, err := c.Writer.Write([]byte(message.Serialize()))
 
-	if err != nil{
-		return  err
+	if err != nil {
+		return err
 	}
 
 	return c.Writer.Flush()
 }
 
-func (c *Conn) Send(message Message) (Message, error){
-	if err := c.send(message); err != nil{
+func (c *Conn) Send(message Message) (Message, error) {
+	if err := c.send(message); err != nil {
 		return nil, err
 	}
 
@@ -70,9 +70,9 @@ func (c Conn) discardEof() error {
 }
 
 // save message content to io reader
-func (c Conn) ReadWithWriter(writer io.Writer) (Protocol, int, error){
+func (c Conn) ReadWithWriter(writer io.Writer) (Protocol, int, error) {
 	protocol, err := c.readProtocol()
-	if err != nil{
+	if err != nil {
 		return protocol, 0, err
 	}
 
@@ -95,12 +95,12 @@ func (c Conn) ReadWithWriter(writer io.Writer) (Protocol, int, error){
 			return ProtocolBulkString, 0, err
 		}
 
-		for i :=0; i< length; i++{
+		for i := 0; i < length; i++ {
 			b, err := c.Reader.ReadByte()
-			if err != nil{
-				return ProtocolBulkString, 0,  err
+			if err != nil {
+				return ProtocolBulkString, 0, err
 			}
-			if err := buf.WriteByte(b); err != nil{
+			if err := buf.WriteByte(b); err != nil {
 				return ProtocolBulkString, 0, err
 			}
 		}
@@ -131,7 +131,7 @@ func (c Conn) ReadWithWriter(writer io.Writer) (Protocol, int, error){
 	case ProtocolArray:
 		line, _, err := c.Reader.ReadLine()
 		if err != nil {
-			return ProtocolArray, 0 , err
+			return ProtocolArray, 0, err
 		}
 
 		number, err := strconv.Atoi(string(line))
@@ -221,8 +221,6 @@ func (c Conn) readMessage() (Message, error) {
 		return nil, errors.New("unknown protocol " + fmt.Sprintf("[%s]", string(protocol)))
 	}
 }
-
-
 
 func NewConn(conn net.Conn) *Conn {
 	return &Conn{

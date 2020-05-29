@@ -11,6 +11,6 @@ type Dict interface {
 	Len() int
 }
 
-func Default() Dict{
+func Default() Dict {
 	return hashmap.New(100)
 }

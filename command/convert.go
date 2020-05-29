@@ -8,9 +8,9 @@ import (
 func Convert(message redis.Message) RedisCommand {
 	var args redis.ArrayMessage
 
-	if message, ok := message.(redis.ArrayMessage); ok{
+	if message, ok := message.(redis.ArrayMessage); ok {
 		args = message
-	}else{
+	} else {
 		args = []redis.Message{message}
 	}
 
@@ -18,25 +18,25 @@ func Convert(message redis.Message) RedisCommand {
 		args: args,
 	}
 
-	if handler, ok := handlerMap[strings.ToUpper(args[0].String())]; ok{
+	if handler, ok := handlerMap[strings.ToUpper(args[0].String())]; ok {
 		command.handler = handler
-	}else{
+	} else {
 		command.handler = notFound
 	}
 
 	return command
 }
 
-func ConvertToMessage(args ...string) redis.Message{
+func ConvertToMessage(args ...string) redis.Message {
 	msg := redis.ArrayMessage{}
-	for _, arg := range args{
-		msg  = append(msg, redis.NewBulkStringMessage(arg))
+	for _, arg := range args {
+		msg = append(msg, redis.NewBulkStringMessage(arg))
 	}
 	return msg
 }
 
 var handlerMap = map[string]Handler{
 	"PING": Ping,
-	"SET": Set,
-	"GET": Get,
+	"SET":  Set,
+	"GET":  Get,
 }

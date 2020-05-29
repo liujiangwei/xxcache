@@ -8,8 +8,7 @@ const RdbOpCodeEof = 255
 const RdbOpCodeSelectDB = 254
 const RdbOpCodeResizeDB = 251
 const RdbOpCodeAux = 250
-const RdbOpCodeModuleAux =  247
-
+const RdbOpCodeModuleAux = 247
 
 const RDB_ENCVAL = 3 //RDB_ENCVAL
 const RDB_6BITLEN = 0

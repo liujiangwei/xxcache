@@ -11,27 +11,25 @@ type Commander interface {
 	Get(string) (string, error)
 }
 
-type Handler func(commander Commander,args redis.ArrayMessage) redis.Message
+type Handler func(commander Commander, args redis.ArrayMessage) redis.Message
 
 type RedisCommand struct {
 	args    redis.ArrayMessage
 	handler Handler
 }
 
-func (command *RedisCommand) Exec(commander Commander) redis.Message{
+func (command *RedisCommand) Exec(commander Commander) redis.Message {
 	return command.handler(commander, command.args)
 }
-
 
 type Command struct {
 	Args []string
 }
 
-func (cmd Command) Serialize() redis.Message{
+func (cmd Command) Serialize() redis.Message {
 	return redis.ConvertToMessage(cmd.Args...)
 }
 
 type StringCommand struct {
 	Command
 }
-

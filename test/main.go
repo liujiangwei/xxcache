@@ -10,11 +10,11 @@ import (
 func main() {
 	testData()
 
-	cache, err  := xxcache.New(xxcache.Option{
-		Addr:"localhost:6379",
+	cache, err := xxcache.New(xxcache.Option{
+		Addr: "localhost:6379",
 	})
 
-	if err != nil{
+	if err != nil {
 		logrus.Warnln(err)
 	}
 
@@ -25,26 +25,26 @@ func main() {
 func testData() {
 	client := redis.NewClient(&redis.Options{})
 
-	for i := 0; i< 10; i++{
+	for i := 0; i < 10; i++ {
 		client.Set(strconv.Itoa(i), i, 0)
 	}
 
-	for i := 0; i< 10; i++{
+	for i := 0; i < 10; i++ {
 		client.LPush("list", i)
 	}
 
-	for i := 0; i< 10; i++{
+	for i := 0; i < 10; i++ {
 		client.ZAdd("zset", &redis.Z{
-			Score:float64(i),
-			Member:i,
+			Score:  float64(i),
+			Member: i,
 		})
 	}
 
-	for i := 0; i< 10; i++{
+	for i := 0; i < 10; i++ {
 		client.SAdd("set", i)
 	}
 
-	for i := 0; i< 10; i++{
+	for i := 0; i < 10; i++ {
 		client.HSet("hash", i, i)
 	}
 }

@@ -1,6 +1,5 @@
 package lzf
 
-
 //https://segmentfault.com/a/1190000011425787
 func DeCompress(compressed string) string {
 	return "de_compress"
@@ -56,7 +55,7 @@ func DeCompress(compressed string) string {
 	//return string(raw)
 }
 
-func Compress(raw string)string  {
+func Compress(raw string) string {
 	return "compressed"
 	//length := len(raw)
 	//if length == 1{
@@ -75,18 +74,19 @@ func Compress(raw string)string  {
 
 const HSize = 1 << HLog
 const HLog = 16
-func IDX(n uint) uint{
-	a :=  ((n >> (3 *8-HLog))-n ) & (HSize -1)
+
+func IDX(n uint) uint {
+	a := ((n >> (3*8 - HLog)) - n) & (HSize - 1)
 
 	return a
 }
 
 func Next() {
-	
+
 }
 
-func First(b []byte) byte{
-	a :=  b[0] << 8 | b[1]
+func First(b []byte) byte {
+	a := b[0]<<8 | b[1]
 
 	return a
 }

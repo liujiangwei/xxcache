@@ -14,18 +14,18 @@ func main() {
 	logrus.Fatal((buf[0] & 0x3F) << 8)
 
 	listener, err := net.Listen("tcp", "localhost:10000")
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 
 	for {
-		conn , err := listener.Accept()
-		if err != nil{
+		conn, err := listener.Accept()
+		if err != nil {
 			log.Fatal(err)
 		}
 
 		go func(conn net.Conn) {
-			for{
+			for {
 				var data = make([]byte, 10)
 				length, err := conn.Read(data)
 				log.Println(conn.RemoteAddr(), length, err, string(data))

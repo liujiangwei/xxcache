@@ -1,4 +1,5 @@
 package xxcache
+
 // initialize database for try psync first
 //conn , err := redis.Connect(cache.option.Addr)
 //if err != nil{
