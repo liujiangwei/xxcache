@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
+	"github.com/liujiangwei/xxcache/redis/zipmap"
 	"github.com/sirupsen/logrus"
 	"log"
 	"net"
@@ -8,6 +11,18 @@ import (
 )
 
 func main() {
+	zm := zipmap.New()
+	log.Println(zm.Set("abc", "v"))
+	log.Fatalln(zm)
+
+	b := bytes.NewBuffer([]byte{})
+	if err := binary.Write(b, binary.LittleEndian, int32(123456)); err != nil{
+		log.Fatalln(err)
+	}else{
+		log.Fatalln(b.Bytes())
+	}
+
+
 	// *lenptr = ((buf[0]&0x3F)<<8)|buf[1]
 	buf := []byte{115, 101}
 	// 01110011 01100101   00111111

@@ -59,6 +59,7 @@ func LoadLen(reader *bufio.Reader) (length uint64, encoded bool, err error) {
 			length = uint64(num)
 		}
 	default:
+		// compare first byte
 		switch buf[0] {
 		case BitLen32:
 			buf = make([]byte, 4)
@@ -92,10 +93,7 @@ const EncLzf = 3
 func LoadString(reader *bufio.Reader) (str string, err error) {
 	var length uint64
 	var encoded bool
-	length, encoded, err = LoadLen(reader)
-	//logrus.Debugln("load string", length, encoded, err)
-
-	if err != nil {
+	if length, encoded, err = LoadLen(reader); err != nil {
 		return str, err
 	}
 
@@ -216,18 +214,29 @@ func LoadBinaryDouble(reader *bufio.Reader) (f float64, err error) {
 	return f, err
 }
 
-const TypeString = 0
-const TypeList = 1
-const TypeSet = 2
-const TypeZSet2 = 5
-const TypeZSet = 3
-const TypeHash = 4
-const TypeListQuickList = 14
-const TypeHashZipMap = 9
-const TypeListZipList = 10
-const TypeSetIntSet = 11
-const TypeZSetZipList = 12
-const TypeHashZipList = 13
-const TypeStreamListPacks = 15
-const TypeModule = 6
-const TypeModule2 = 7
+const (
+	TypeString          = 0
+	TypeList            = 1
+	TypeSet             = 2
+	TypeZSet2           = 5
+	TypeZSet            = 3
+	TypeHash            = 4
+	TypeListQuickList   = 14
+	TypeHashZipMap      = 9
+	TypeListZipList     = 10
+	TypeSetIntSet       = 11
+	TypeZSetZipList     = 12
+	TypeHashZipList     = 13
+	TypeStreamListPacks = 15
+	TypeModule          = 6
+	TypeModule2         = 7
+)
+
+const (
+	ModuleOpCodeEof          = 0 /* End of module value. */
+	RDB_MODULE_OPCODE_SINT   = 1 /* Signed integer. */
+	ModuleOpCodeUint         = 2 /* Unsigned integer. */
+	RDB_MODULE_OPCODE_FLOAT  = 3 /* Float. */
+	RDB_MODULE_OPCODE_DOUBLE = 4 /* Double. */
+	RDB_MODULE_OPCODE_STRING = 5 /* String. */
+)

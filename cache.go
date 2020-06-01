@@ -6,7 +6,10 @@ import (
 	"errors"
 	"github.com/cornelk/hashmap"
 	"github.com/liujiangwei/xxcache/redis"
+	"github.com/liujiangwei/xxcache/redis/intset"
 	"github.com/liujiangwei/xxcache/redis/rdb"
+	"github.com/liujiangwei/xxcache/redis/ziplist"
+	"github.com/liujiangwei/xxcache/redis/zipmap"
 	"github.com/sirupsen/logrus"
 	"io"
 	"log"
@@ -255,8 +258,29 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 				logrus.Warnln("unused op code aux", key, value)
 			}
 		case rdb.OpCodeModuleAux:
-			//todo
-			logrus.Infoln("OpCodeModuleAux")
+			var moduleId, whenOpCode, when, eof uint64
+			if moduleId,_, err = rdb.LoadLen(buf); err != nil{
+				return err
+			}
+			if whenOpCode,_, err = rdb.LoadLen(buf); err != nil{
+				return err
+			}else if int(whenOpCode) != rdb.ModuleOpCodeUint {
+				return errors.New("ModuleOpCodeUint error")
+			}
+
+			if when,_, err = rdb.LoadLen(buf); err != nil{
+				return err
+			}
+
+			if eof , _, err = rdb.LoadLen(buf); err != nil{
+				return err
+			}else if int(eof) != rdb.ModuleOpCodeEof {
+				return errors.New("ModuleOpCodeEof error")
+			}
+
+			logrus.Warnln("OpCodeModuleAux", moduleId, whenOpCode, when, eof)
+
+			return errors.New("OpCodeModuleAux is unsupported")
 		default:
 			// this is key value pair
 			var key string
@@ -353,7 +377,32 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 				if str, err = rdb.LoadString(buf); err != nil {
 					return err
 				}
-				logrus.Infoln("Encode", key, str)
+				switch opCode{
+				case rdb.TypeHashZipMap:
+					hash := zipmap.Load(str)
+					logrus.Infoln("TypeHashZipMap", key, hash)
+				case rdb.TypeSetIntSet:
+					set := intset.Load(str)
+					logrus.Infoln("TypeSetIntSet", key, set)
+				case rdb.TypeZSetZipList:
+					// hash member => score
+					list := ziplist.Load(str)
+					size := len(list) / 2
+					for i:=0; i< size; i++{
+						logrus.Infoln("TypeZSetZipList", "member=>score", key, list[2 * i], list[2*i +1])
+					}
+				case rdb.TypeHashZipList:
+					list := ziplist.Load(str)
+					size := len(list) / 2
+					for i:=0; i< size; i++{
+						logrus.Infoln("TypeHashZipList", "field=>value", key, list[2 * i], list[2*i +1])
+					}
+				case rdb.TypeListZipList:
+					list := ziplist.Load(str)
+					for i:=0; i< len(list); i++{
+						logrus.Infoln("TypeListZipList", key, list[i])
+					}
+				}
 			case rdb.TypeStreamListPacks:
 				var length uint64
 				if length, _, err = rdb.LoadLen(buf); err != nil {
@@ -366,9 +415,9 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 					//}
 					//logrus.Infoln("TypeListQuickList", key, value)
 				}
-				err = errors.New("TypeStreamListPacks")
+				err = errors.New("TypeStreamListPacks unsupported now")
 			case rdb.TypeModule, rdb.TypeModule2:
-				err = errors.New("TypeModule TypeModule2")
+				err = errors.New("TypeModule TypeModule2 unsupported now")
 			}
 		}
 

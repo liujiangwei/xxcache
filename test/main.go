@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	testData()
+	//testData()
 
 	cache, err := xxcache.New(xxcache.Option{
 		Addr: "localhost:6379",
@@ -36,7 +36,7 @@ func testData() {
 	for i := 0; i < 10; i++ {
 		client.ZAdd("zset", &redis.Z{
 			Score:  float64(i),
-			Member: i,
+			Member:  i+1 ,
 		})
 	}
 
@@ -45,6 +45,6 @@ func testData() {
 	}
 
 	for i := 0; i < 10; i++ {
-		client.HSet("hash", i, i)
+		client.HSet("hash", i+1, i)
 	}
 }
