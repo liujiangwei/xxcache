@@ -38,7 +38,7 @@ func (pool *Pool) ExecCommand(ctx context.Context, command Command) {
 	case conn := <-pool.conn:
 		defer func() { pool.conn <- conn }()
 
-		msg, err := conn.Send(command.Serialize())
+		msg, err := conn.SendAndWaitReply(command.Serialize())
 		if err != nil {
 			command.WithError(err)
 			return

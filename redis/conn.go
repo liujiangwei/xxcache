@@ -19,7 +19,7 @@ func (c *Conn) Recv() (Message, error) {
 	return c.readMessage()
 }
 
-func (c *Conn) send(message Message) error {
+func (c *Conn) Send(message Message) error {
 	_, err := c.Writer.Write([]byte(message.Serialize()))
 
 	if err != nil {
@@ -29,8 +29,8 @@ func (c *Conn) send(message Message) error {
 	return c.Writer.Flush()
 }
 
-func (c *Conn) Send(message Message) (Message, error) {
-	if err := c.send(message); err != nil {
+func (c *Conn) SendAndWaitReply(message Message) (Message, error) {
+	if err := c.Send(message); err != nil {
 		return nil, err
 	}
 

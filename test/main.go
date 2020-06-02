@@ -19,6 +19,9 @@ func main() {
 	}
 
 	logrus.Infoln(cache.SyncWithRedis())
+
+
+	logrus.Infoln(cache.Set("a", "aa"))
 	//cache.Sync()
 }
 

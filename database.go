@@ -4,6 +4,7 @@ import "github.com/cornelk/hashmap"
 
 type Database struct {
 	dict hashmap.HashMap
+	expires hashmap.HashMap
 }
 
 func (db *Database) Get(key string) *Entry {
