@@ -51,7 +51,7 @@ func newIterator(str string) Iterator {
 
 	return iterator
 }
-
+// [29 0 0 0 19 0 0 0 2 0  0 7 102 105 101 108 100 45 48 9 7 118 97 108 117 101 45 48 255]
 func (iterator *Iterator) Next() (str string, ok bool) {
 	if iterator.val[iterator.pos] == ZipEnd {
 		return "", false
@@ -115,7 +115,7 @@ func (iterator *Iterator) entry() (size, length uint32, str string) {
 			length = 5
 		default:
 			if encoding >= ZipIntImmMin && encoding <= ZipIntImmMax {
-				val := (encoding & ZIP_INT_IMM_MASK)-1
+				val := (encoding & ZipIntImmMask)-1
 				str = strconv.Itoa(int(val))
 			}else{
 				panic("failed to decode zip list item")
@@ -124,7 +124,7 @@ func (iterator *Iterator) entry() (size, length uint32, str string) {
 	}
 
 	if length > 0{
-		str  = iterator.val[iterator.pos + 1: iterator.pos + int(length)]
+		str  = iterator.val[iterator.pos + 1: iterator.pos + int(length)+1]
 	}
 
 	return length, size, str
@@ -132,7 +132,7 @@ func (iterator *Iterator) entry() (size, length uint32, str string) {
 
 const ZipIntImmMin = 0xf1
 const ZipIntImmMax = 0xfd
-const ZIP_INT_IMM_MASK = 0x0f
+const ZipIntImmMask = 0x0f
 
 func (iterator *Iterator) decode() uint8 {
 	encoding := iterator.val[iterator.pos]
@@ -142,27 +142,6 @@ func (iterator *Iterator) decode() uint8 {
 
 	return encoding
 }
-
-//  if ((encoding) < ZIP_STR_MASK) {                                           \
-//        if ((encoding) == ZIP_STR_06B) {                                       \
-//            (lensize) = 1;                                                     \
-//            (len) = (ptr)[0] & 0x3f;                                           \
-//        } else if ((encoding) == ZIP_STR_14B) {                                \
-//            (lensize) = 2;                                                     \
-//            (len) = (((ptr)[0] & 0x3f) << 8) | (ptr)[1];                       \
-//        } else if ((encoding) == ZIP_STR_32B) {                                \
-//            (lensize) = 5;                                                     \
-//            (len) = ((ptr)[1] << 24) |                                         \
-//                    ((ptr)[2] << 16) |                                         \
-//                    ((ptr)[3] <<  8) |                                         \
-//                    ((ptr)[4]);                                                \
-//        } else {                                                               \
-//            panic("Invalid string encoding 0x%02X", (encoding));               \
-//        }                                                                      \
-//    } else {                                                                   \
-//        (lensize) = 1;                                                         \
-//        (len) = zipIntSize(encoding);                                          \
-//    }
 
 func Load(encoded string) (list []string){
 	iter := newIterator(encoded)

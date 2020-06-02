@@ -12,7 +12,6 @@ import (
 	"github.com/liujiangwei/xxcache/redis/zipmap"
 	"github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -168,7 +167,7 @@ func (cache *Cache) SyncWithRedis() error {
 func (cache *Cache) loadRdb(filename string) (err error) {
 	var file *os.File
 	if file, err = os.OpenFile(filename, os.O_RDONLY, os.ModePerm); err != nil {
-		return err
+		return errors.New("failed to open rdb file," + err.Error())
 	}
 
 	defer func() {
@@ -285,24 +284,35 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 			// this is key value pair
 			var key string
 			if key, err = rdb.LoadString(buf); err != nil {
+				logrus.Warnln("failed to load key", err)
 				return err
 			}
+
+			if key == ""{
+				logrus.Warnln("failed to load key, key is empty", err)
+				return errors.New("empty key")
+			}
+
 			// opCode is object type
 			switch opCode {
 			case rdb.TypeString:
 				var value string
 				if value, err = rdb.LoadString(buf); err != nil {
+					logrus.Warnln("failed to load TypeString", err)
 					return err
 				}
 				logrus.Infoln("TypeString", key, value)
 			case rdb.TypeList:
 				var length uint64
 				if length, _, err = rdb.LoadLen(buf); err != nil {
+					logrus.Warnln("failed to load TypeList length", err)
+
 					return err
 				}
 				var value string
 				for ; length > 0; length-- {
 					if value, err = rdb.LoadString(buf); err != nil {
+						logrus.Warnln("failed to load TypeList value", err)
 						return err
 					} else {
 						logrus.Infoln("TypeList", key, value)
@@ -311,6 +321,7 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 			case rdb.TypeSet:
 				var length uint64
 				if length, _, err = rdb.LoadLen(buf); err != nil {
+					logrus.Warnln("failed to load TypeSet length", err)
 					return err
 				}
 				var value string
@@ -318,27 +329,32 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 					if value, err = rdb.LoadString(buf); err != nil {
 						return err
 					} else {
-						log.Println("TypeSet", key, value)
+						logrus.Infoln("TypeSet", key, value)
 					}
 				}
 			case rdb.TypeZSet, rdb.TypeZSet2:
 				var length uint64
 				if length, _, err = rdb.LoadLen(buf); err != nil {
+					logrus.Warnln("failed to load TypeZSet, TypeZSet2 length", err)
 					return err
 				}
 				var value string
 				var score float64
 				for ; length > 0; length-- {
 					if value, err = rdb.LoadString(buf); err != nil {
+						logrus.Warnln("failed to load TypeZSet, TypeZSet2 value", err)
 						return err
 					}
 					if opCode == rdb.TypeZSet2 {
 						if score, err = rdb.LoadBinaryDouble(buf); err != nil {
+							logrus.Warnln("failed to load TypeZSet, TypeZSet2 value TypeZSet2", err)
 							return err
 						}
 						logrus.Infoln("TypeZSet2", key, score, value)
 					} else {
 						if score, err = rdb.LoadDouble(buf); err != nil {
+							logrus.Warnln("failed to load TypeZSet, TypeZSet2 value TypeZSet2", err)
+
 							return err
 						}
 						logrus.Infoln("TypeZSet", key, score, value)
@@ -347,14 +363,17 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 			case rdb.TypeHash:
 				var length uint64
 				if length, _, err = rdb.LoadLen(buf); err != nil {
+					logrus.Warnln("failed to load TypeHash length", err)
 					return err
 				}
 				var field, value string
 				for ; length > 0; length-- {
 					if field, err = rdb.LoadString(buf); err != nil {
+						logrus.Warnln("failed to load TypeHash field", err)
 						return err
 					}
 					if value, err = rdb.LoadString(buf); err != nil {
+						logrus.Warnln("failed to load TypeHash value", err)
 						return err
 					}
 
@@ -363,20 +382,24 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 			case rdb.TypeListQuickList:
 				var length uint64
 				if length, _, err = rdb.LoadLen(buf); err != nil {
+					logrus.Warnln("failed to load TypeListQuickList length", err)
 					return err
 				}
 				var value string
 				for ; length > 0; length-- {
 					if value, err = rdb.LoadString(buf); err != nil {
+						logrus.Warnln("failed to load TypeListQuickList value", err)
 						return err
 					}
-					logrus.Infoln("TypeListQuickList", key, value)
+					logrus.Infoln("TypeListQuickList", length, key, ziplist.Load(value))
 				}
 			case rdb.TypeHashZipMap, rdb.TypeListZipList, rdb.TypeSetIntSet, rdb.TypeZSetZipList, rdb.TypeHashZipList:
 				var str string
 				if str, err = rdb.LoadString(buf); err != nil {
+					logrus.Warnln("failed to load TypeHashZipMap... length", key, err)
 					return err
 				}
+
 				switch opCode{
 				case rdb.TypeHashZipMap:
 					hash := zipmap.Load(str)

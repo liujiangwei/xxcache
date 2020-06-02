@@ -2,7 +2,6 @@ package intset
 
 import (
 	"encoding/binary"
-	"github.com/sirupsen/logrus"
 )
 
 //#define INTSET_ENC_INT16 (sizeof(int16_t))
@@ -19,18 +18,32 @@ func Load(encoded string) (set []int64) {
 	encoding := binary.LittleEndian.Uint32([]byte(encoded[0:4]))
 	length := binary.LittleEndian.Uint32([]byte(encoded[4:8]))
 
-	logrus.Infoln(encoding, length, len(encoded))
 	switch encoding {
 	case EncInt16:
 		for i:=0; i< int(length); i++{
-			start := 8 + int(encoding) * i
-			end := 8 + int(encoding) * (i+1)
+			start := 8 + 2 * i
+			end := 8 + 2 * (i+1)
 
 			num := binary.LittleEndian.Uint16([]byte(encoded[start:end]))
 			set = append(set, int64(num))
 		}
 	case EncInt32:
+		for i:=0; i< int(length); i++{
+			start := 8 + 4 * i
+			end := 8 + 4 * (i+1)
+
+			num := binary.LittleEndian.Uint32([]byte(encoded[start:end]))
+			set = append(set, int64(num))
+		}
 	case EncInt64:
+		for i:=0; i< int(length); i++{
+			start := 8 + 8 * i
+			end := 8 + 8 * (i+1)
+
+			num := binary.LittleEndian.Uint64([]byte(encoded[start:end]))
+			set = append(set, int64(num))
+		}
 	}
+
 	return set
 }

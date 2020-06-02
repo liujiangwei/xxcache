@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/liujiangwei/xxcache/lzf"
+	"github.com/liujiangwei/xxcache/redis/lzf"
 	"github.com/sirupsen/logrus"
 	"io"
 	"log"
@@ -54,14 +54,17 @@ func LoadLen(reader *bufio.Reader) (length uint64, encoded bool, err error) {
 	case BitLen14:
 		buf[1], err = reader.ReadByte()
 		if err == nil {
-			buf[0] = buf[0] & 0x3F
-			num := binary.LittleEndian.Uint16(buf)
+			//l := (buf[0] & 0x3F << 8) | buf[1]
+			num := binary.BigEndian.Uint16([]byte{buf[0] & 0x3F, buf[1]})
 			length = uint64(num)
+		} else {
+			panic("failed to load BitLen14")
 		}
 	default:
 		// compare first byte
 		switch buf[0] {
 		case BitLen32:
+			logrus.Infoln("BitLen32")
 			buf = make([]byte, 4)
 			if n, err := io.ReadFull(reader, buf); err == nil && n == 4 {
 				var lengthUint32 uint32
@@ -71,6 +74,8 @@ func LoadLen(reader *bufio.Reader) (length uint64, encoded bool, err error) {
 				err = errors.New("failed to read 4 byte for BitLen32")
 			}
 		case BitLen64:
+			logrus.Infoln("BitLen64")
+
 			buf = make([]byte, 8)
 			if n, err := io.ReadFull(reader, buf); err == nil && n == 8 {
 				err = binary.Write(bytes.NewBuffer(buf), binary.LittleEndian, length)
@@ -129,17 +134,18 @@ func LoadString(reader *bufio.Reader) (str string, err error) {
 			str = fmt.Sprintf("%d", num)
 		case EncLzf:
 			var n uint64
+			// 解压前长度
 			n, _, err = LoadLen(reader)
 			if err != nil {
-				return str, err
+				return
 			}
 
+			// 解压后长度
 			length, _, err := LoadLen(reader)
 			if err != nil {
 				return str, err
 			}
 
-			logrus.Infoln("RDB_ENC_LZF", n, length)
 			var c = make([]byte, n)
 			if n, err := io.ReadFull(reader, c); err != nil {
 				return str, err
@@ -147,7 +153,7 @@ func LoadString(reader *bufio.Reader) (str string, err error) {
 				return str, errors.New(fmt.Sprintf("failed to read [%d] bytes for LoadString EncLzf", len(c)))
 			}
 
-			str = lzf.DeCompress(string(c))
+			str = lzf.DeCompress(string(c), int(length))
 		default:
 			err = errors.New("failed decode string")
 		}
@@ -162,7 +168,6 @@ func LoadString(reader *bufio.Reader) (str string, err error) {
 	}
 	str = string(buf)
 
-	logrus.Debugln("load string", length, encoded, str)
 	return str, err
 }
 
