@@ -3,6 +3,7 @@ package xxcache
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"errors"
 	"github.com/cornelk/hashmap"
 	"github.com/liujiangwei/xxcache/redis"
@@ -181,6 +182,7 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 	}
 	// start to load rdb file
 	var opCode uint
+	var expiresTime uint64
 	for err == nil {
 		// load op code first
 		if opCode, err = rdb.LoadOpCode(buf); err != nil {
@@ -197,7 +199,9 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 			} else if n != 4 {
 				return errors.New("failed to load 4 bytes for OpCodeExpireTime")
 			}
-			logrus.Infoln("OpCodeExpireTime", string(time))
+			expiresTime = uint64(binary.LittleEndian.Uint32(time) * 1000)
+			logrus.Infoln("OpCodeExpireTime", expiresTime)
+
 		case rdb.OpCodeExpireTimeMs:
 			var milliTime = make([]byte, 8)
 			if n, err = io.ReadFull(buf, milliTime); err != nil {
@@ -205,19 +209,22 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 			} else if n != 8 {
 				return errors.New("failed to load 8 bytes for milliTime")
 			}
-			logrus.Infoln("OpCodeExpireTime", string(milliTime))
+			expiresTime = binary.LittleEndian.Uint64(milliTime)
+			logrus.Infoln("OpCodeExpireTimeMs", expiresTime)
 		case rdb.OpCodeFreq:
 			var lfu byte
 			if lfu, err = buf.ReadByte(); err != nil {
 				return err
 			}
 			logrus.Infoln("OpCodeFreq", lfu)
+			continue
 		case rdb.OpCodeIdle:
 			var lru uint64
 			if lru, _, err = rdb.LoadLen(buf); err != nil {
 				return err
 			}
 			logrus.Println("OpCodeIdle", lru)
+			continue
 		case rdb.OpCodeEof:
 			logrus.Infoln("success load rdb")
 			return nil
@@ -227,6 +234,7 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 				return err
 			}
 			logrus.Println("OpCodeSelectDB", db)
+			continue
 		case rdb.OpCodeResizeDB:
 			var dbSize, expiresSize uint64
 			if dbSize, _, err = rdb.LoadLen(buf); err != nil {
@@ -236,6 +244,7 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 				return err
 			}
 			logrus.Println("OpCodeResizeDB", dbSize, expiresSize)
+			continue
 		case rdb.OpCodeAux:
 			var key, value string
 			if key, err = rdb.LoadString(buf); err != nil {
@@ -256,6 +265,7 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 			default:
 				logrus.Warnln("unused op code aux", key, value)
 			}
+			continue
 		case rdb.OpCodeModuleAux:
 			var moduleId, whenOpCode, when, eof uint64
 			if moduleId,_, err = rdb.LoadLen(buf); err != nil{
@@ -442,8 +452,12 @@ func (cache *Cache) loadRdb(filename string) (err error) {
 			case rdb.TypeModule, rdb.TypeModule2:
 				err = errors.New("TypeModule TypeModule2 unsupported now")
 			}
-		}
 
+			if expiresTime > 0 {
+				logrus.Infoln("key expires", key, expiresTime)
+				expiresTime = 0
+			}
+		}
 	}
 
 	return err
