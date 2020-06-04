@@ -1,8 +1,8 @@
 package redis
 
-
 import (
 	"errors"
+	"strconv"
 )
 
 type Command interface {
@@ -15,7 +15,6 @@ type Command interface {
 	//Read(entry Entry)
 	//Set() bool
 }
-
 
 type BaseCommand struct {
 	Args []string
@@ -45,6 +44,36 @@ func (cmd *StringCommand) Parse(message Message) {
 	cmd.Val = message.String()
 }
 
+func (cmd *StringCommand) Result() (string, error) {
+	return cmd.Val, cmd.Err
+}
+
+type FloatCommand struct {
+	BaseCommand
+	Val float64
+}
+
+func (cmd *FloatCommand) Parse(message Message) {
+	if val, err := strconv.ParseFloat(message.String(), 64); err != nil {
+		cmd.Val = val
+	}
+}
+
+func (cmd *FloatCommand) Result() (float64, error) {
+	return cmd.Val, cmd.Err
+}
+
+type IntCommand struct {
+	Val int
+	BaseCommand
+}
+
+func (i *IntCommand) Parse(message Message) {
+	if message, ok := message.(IntMessage); ok {
+		i.Val = int(message)
+	}
+}
+
 // for command return ArrayMessage
 type StringStringCommand struct {
 	BaseCommand
@@ -69,11 +98,10 @@ func (cmd *StringStringCommand) Parse(message Message) {
 	}
 }
 
-
 // for command return -OK
 type OKCommand struct {
 	BaseCommand
-	val string
+	Val string
 }
 
 func (cmd *OKCommand) Parse(message Message) {
@@ -87,6 +115,24 @@ func (cmd *OKCommand) Parse(message Message) {
 	}
 }
 
-func (cmd *OKCommand) Result() (string, error){
-	return cmd.val, cmd.Err
+func (cmd *OKCommand) Result() (string, error) {
+	return cmd.Val, cmd.Err
+}
+
+// only for multi get
+type InterfaceArrayCommand struct {
+	BaseCommand
+	Val []interface{}
+}
+func (i *InterfaceArrayCommand) Parse(message Message) {
+	if messages, ok := message.(ArrayMessage); ok{
+		for _, m := range messages{
+			switch m.(type) {
+			case NilMessage,ErrorMessage:
+				i.Val = append(i.Val, errors.New(m.String()))
+			default:
+				i.Val = append(i.Val, m.String())
+			}
+		}
+	}
 }

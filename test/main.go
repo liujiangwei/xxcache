@@ -26,7 +26,7 @@ func testData() {
 	logrus.Fatalln(client.Get("a").Result())
 	for i := 0; i < 1; i++ {
 		// string
-		client.Set(strconv.Itoa(i), i, 0)
+		client.Set(strconv.Itoa(i), i, 0).Result()
 		client.Set("string" + strconv.Itoa(i), i, 0)
 
 		//list
