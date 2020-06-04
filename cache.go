@@ -1,10 +1,8 @@
 package xxcache
 
 import (
-	"context"
 	"github.com/cornelk/hashmap"
 	"github.com/sirupsen/logrus"
-	"strconv"
 	"sync"
 )
 
@@ -19,94 +17,38 @@ func init() {
 }
 
 type Cache struct {
-	option   Option
-	connPool *Pool
-
-	database []*Database
-	cdb      *Database
-
-	lock sync.Mutex
+	connPool Pool
+	databases []*Database
+	sync.RWMutex
 }
 
-const DefaultRdbFile = "tmp.rdb"
+type MessageHandleFunc func(cache *Cache)
+func (cache *Cache) initDatabase(size int) {
+	cache.databases = make([]*Database, size)
 
-type Option struct {
-	Addr    string
-	RdbFile string
-}
-
-
-func (cache *Cache) initializeDatabase(num int) {
-	cache.database = make([]*Database, num)
-
-	for i := 0; i < num; i++ {
-		cache.database[i] = &Database{dict: hashmap.HashMap{}}
+	for i := 0; i < size; i++ {
+		cache.databases[i] = &Database{dict: hashmap.HashMap{}}
 	}
 }
 
-func New(option Option) (*Cache, error) {
-	cache := Cache{
-		option: option,
+func (cache *Cache) initPool (capacity int, addr string) error {
+	pool := Pool{
+		addr:addr,
+		capacity:capacity,
 	}
 
-	if pool, err := initPool(1, option.Addr); err != nil {
-		return nil, err
-	} else {
-		cache.connPool = pool
+	if err := pool.Init(); err != nil{
+		return err
+	}
+	cache.connPool = pool
+
+	return nil
+}
+
+func (cache *Cache) SelectDatabase(index int) *Database{
+	if index < 0 || index >= len(cache.databases){
+		return nil
 	}
 
-	return &cache, nil
-}
-
-func (cache Cache) Process(command Command) {
-	cache.connPool.ExecCommand(context.Background(), command)
-}
-
-func (cache Cache) Ping() (string, error) {
-	cmd := NewStringCommand("Ping")
-
-	cache.Process(&cmd)
-
-	return cmd.val, cmd.err
-}
-
-func (cache Cache) ReplConf(option string, val string) (string, error) {
-	cmd := NewStringCommand("ReplConf", option, val)
-
-	cache.Process(&cmd)
-
-	return cmd.val, cmd.err
-}
-
-func (cache Cache) PSync(id string, offset int) (string, error) {
-	cmd := NewStringCommand("PSync", id, strconv.Itoa(offset))
-
-	cache.Process(&cmd)
-
-	return cmd.val, cmd.err
-}
-
-func (cache Cache) Info(sections ...string) (string, error) {
-	args := append([]string{"INFO"}, sections...)
-
-	cmd := NewStringCommand(args...)
-	cache.Process(&cmd)
-
-	return cmd.val, cmd.err
-}
-
-func (cache Cache) ConfigGet(sections ...string) (map[string]string, error) {
-	args := append([]string{"CONFIG", "GET"}, sections...)
-
-	cmd := NewStringStringCommand(args...)
-	cache.Process(&cmd)
-
-	return cmd.val, cmd.err
-}
-
-func (cache Cache) Set(key, value string) (string, error){
-	cmd := NewStringCommand("SET", key, value)
-	cache.Process(&cmd)
-
-	return cmd.val, cmd.err
+	return cache.databases[index]
 }

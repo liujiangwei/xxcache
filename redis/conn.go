@@ -160,6 +160,10 @@ func (c Conn) readMessage() (Message, error) {
 			return nil, err
 		}
 
+		if length == -1{
+			return NilMessage{}, nil
+		}
+
 		// read data
 		var data = make([]byte, length)
 		if _, err := c.Reader.Read(data); err != nil {

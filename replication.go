@@ -5,11 +5,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/cornelk/hashmap"
 	"github.com/liujiangwei/xxcache/redis"
 	"github.com/liujiangwei/xxcache/redis/intset"
 	"github.com/liujiangwei/xxcache/redis/rdb"
 	"github.com/liujiangwei/xxcache/redis/ziplist"
 	"github.com/liujiangwei/xxcache/redis/zipmap"
+	"github.com/sean-public/fast-skiplist"
 	"github.com/sirupsen/logrus"
 	"io"
 	"os"
@@ -19,14 +21,16 @@ import (
 )
 
 type Replication struct {
-	masterAddr              string
-	replicationId           string
-	replicationId2          string
-	replicationOffset       int
-	secondReplicationOffset int
-	stat                    bool
-	messages                chan redis.Message
-	err                     chan error
+	masterAddr string
+
+	Id     string
+	Offset int
+
+	messages chan redis.Message
+	err      chan error
+	stop     chan struct{}
+
+	database *Database
 
 	conn *redis.Conn
 
@@ -35,11 +39,10 @@ type Replication struct {
 
 const DefaultReplicationMessages = 10000
 
-func (repl *Replication) Stop() error {
-	return nil
+func (repl *Replication) Stop() {
 }
 
-func (repl *Replication) Start() error {
+func (repl *Replication) syncWithRedis() error {
 	repl.messages = make(chan redis.Message, DefaultReplicationMessages)
 	repl.err = make(chan error, 1)
 
@@ -54,51 +57,54 @@ func (repl *Replication) Start() error {
 		repl.conn = conn
 	}
 
-	if err := repl.ping(); err != nil {
+	if err := repl.Ping(); err != nil {
 		logrus.Warn("replication error", err)
 		return err
 	}
 
-	if err := repl.sync(); err != nil {
+	if err := repl.Sync(); err != nil {
 		logrus.Warnln("replication error", err)
+		return err
 	}
 
 	// wait for message from master
-	go func() {
-		for {
-			if message, err := repl.conn.Recv(); err != nil {
-				close(repl.messages)
-				repl.err <- err
-				return
-			} else {
-				repl.messages <- message
-			}
-		}
-	}()
-
-	if repl.stat {
-		repl.Stat(time.Second * 5)
-	}
+	go repl.WaitForMessage()
 
 	return nil
 }
 
-func (repl *Replication) ack() error {
-	cmd := NewStringCommand("ReplConf", "ack", strconv.Itoa(repl.replicationOffset))
+func (repl *Replication) WaitForMessage() {
+	for {
+		if message, err := repl.conn.Recv(); err != nil {
+			close(repl.messages)
+			repl.err <- err
+			return
+		} else {
+			repl.messages <- message
+		}
+	}
+}
+
+func (repl *Replication) Ack() error {
+	cmd := redis.StringCommand{
+		BaseCommand: redis.NewBaseCommand("ReplConf", "Ack", strconv.Itoa(repl.Offset)),
+	}
 	if err := repl.conn.Send(cmd.Serialize()); err != nil {
-		err = errors.New("failed send ack to master," + err.Error())
+		err = errors.New("failed send Ack to master," + err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func (repl *Replication) ping() error {
-	pingCmd := NewStringCommand("Ping")
-	if message, err := repl.conn.SendAndWaitReply(pingCmd.Serialize()); err != nil {
+func (repl *Replication) Ping() error {
+	cmd := redis.StringCommand{
+		BaseCommand: redis.NewBaseCommand("Ping"),
+	}
+	if message, err := repl.conn.SendAndWaitReply(cmd.Serialize()); err != nil {
 		return err
 	} else if message.String() != redis.PONG.String() {
-		err = errors.New(fmt.Sprintf("ping, receive %s from %s", message.String(), repl.masterAddr))
+		err = errors.New(fmt.Sprintf("Ping, receive %s from %s", message.String(), repl.masterAddr))
 		return err
 	}
 
@@ -107,10 +113,13 @@ func (repl *Replication) ping() error {
 
 const rdbFile = "./tmp.rdb"
 
-func (repl *Replication) sync() (err error) {
-	cmd := NewStringCommand("Sync")
+func (repl *Replication) Sync() (err error) {
+	cmd := redis.StringCommand{
+		BaseCommand: redis.NewBaseCommand("SYNC"),
+	}
+
 	if err = repl.conn.Send(cmd.Serialize()); err != nil {
-		err = errors.New("sync error," + err.Error())
+		err = errors.New("Sync error," + err.Error())
 		return err
 	}
 
@@ -125,30 +134,32 @@ func (repl *Replication) sync() (err error) {
 		return err
 	} else {
 		logrus.Infoln("redis rdb file", redis.Protocol(protocol), length)
-		return repl.loadRdb(rdbFile)
 	}
+
+	return nil
 }
 
 func (repl *Replication) Stat(duration time.Duration) {
 	for range time.NewTicker(duration).C {
-		logrus.Infoln(fmt.Sprintf("Stat replicationId [%s] replicationOffset[%d]", repl.replicationId, repl.replicationOffset))
+		logrus.Infoln(fmt.Sprintf("Stat Id [%s] Offset[%d]", repl.Id, repl.Offset))
 	}
 }
 
 func (repl *Replication) SetReplicationId(id string) {
-	repl.replicationId = id
+	repl.Id = id
 }
 
 func (repl *Replication) SetReplicationOffset(offset int) {
-	repl.replicationOffset = offset
+	repl.Offset = offset
 }
 
-func (repl *Replication) loadRdb(filename string) (err error) {
+func (repl *Replication) LoadRdbToCache(cache Cache) (err error) {
+	repl.database = cache.SelectDatabase(0)
+
 	var file *os.File
-	if file, err = os.OpenFile(filename, os.O_RDONLY, os.ModePerm); err != nil {
+	if file, err = os.OpenFile(rdbFile, os.O_RDONLY, os.ModePerm); err != nil {
 		return errors.New("failed to open rdb file," + err.Error())
 	}
-
 	defer func() {
 		file.Close()
 	}()
@@ -194,6 +205,7 @@ func (repl *Replication) loadRdb(filename string) (err error) {
 			if lfu, err = buf.ReadByte(); err != nil {
 				return err
 			}
+
 			logrus.Infoln("OpCodeFreq", lfu)
 			continue
 		case rdb.OpCodeIdle:
@@ -204,14 +216,23 @@ func (repl *Replication) loadRdb(filename string) (err error) {
 			logrus.Println("OpCodeIdle", lru)
 			continue
 		case rdb.OpCodeEof:
-			logrus.Infoln("success load rdb")
+			logrus.Infoln("rdb done!!!")
+
 			return nil
 		case rdb.OpCodeSelectDB:
-			var db uint64
-			if db, _, err = rdb.LoadLen(buf); err != nil {
-				return err
+			if index, _, err := rdb.LoadLen(buf); err != nil {
+				return errors.New("OpCodeSelectDB error, " + err.Error() )
+			}else{
+				repl.database = cache.SelectDatabase(int(index))
+				if repl.database == nil{
+					err = errors.New(fmt.Sprintf("cache db size error[%d]", index))
+					logrus.Warnln(err)
+					return err
+				}
+
+				logrus.Println("OpCodeSelectDB", index)
 			}
-			logrus.Println("OpCodeSelectDB", db)
+
 			continue
 		case rdb.OpCodeResizeDB:
 			var dbSize, expiresSize uint64
@@ -221,7 +242,7 @@ func (repl *Replication) loadRdb(filename string) (err error) {
 			if expiresSize, _, err = rdb.LoadLen(buf); err != nil {
 				return err
 			}
-			logrus.Println("OpCodeResizeDB", dbSize, expiresSize)
+			logrus.Println("OpCodeResizeDB ignored", dbSize, expiresSize)
 			continue
 		case rdb.OpCodeAux:
 			var key, value string
@@ -265,15 +286,14 @@ func (repl *Replication) loadRdb(filename string) (err error) {
 				return errors.New("ModuleOpCodeEof error")
 			}
 
-			logrus.Warnln("OpCodeModuleAux", moduleId, whenOpCode, when, eof)
-			return errors.New("OpCodeModuleAux is unsupported")
+			logrus.Warnln("OpCodeModuleAux ignored", moduleId, whenOpCode, when, eof)
 		default:
 			// this is key value pair
 			var key string
 			if key, err = rdb.LoadString(buf); err != nil {
 				logrus.Warnln("failed to load key", err)
 				return err
-			}else if key == ""{
+			} else if key == "" {
 				logrus.Warnln("failed to load key, key is empty", err)
 				return errors.New("empty key")
 			}
@@ -281,48 +301,61 @@ func (repl *Replication) loadRdb(filename string) (err error) {
 			// opCode is object type
 			switch opCode {
 			case rdb.TypeString:
-				var value string
-				if value, err = rdb.LoadString(buf); err != nil {
-					logrus.Warnln("failed to load TypeString", err)
+				if value, err := rdb.LoadString(buf); err != nil {
+					err = errors.New("failed to load TypeString," + err.Error())
+					logrus.Warnln("rdb TypeString", err)
 					return err
+				}else{
+					entry := StringEntry{val:value}
+					repl.database.Set(key, entry)
+					logrus.Debugln("TypeString", key, value)
 				}
-				logrus.Infoln("TypeString", key, value)
 			case rdb.TypeList:
 				var length uint64
 				if length, _, err = rdb.LoadLen(buf); err != nil {
 					logrus.Warnln("failed to load TypeList length", err)
-
 					return err
 				}
+
+				entry := ListEntry{}
 				var value string
 				for ; length > 0; length-- {
 					if value, err = rdb.LoadString(buf); err != nil {
 						logrus.Warnln("failed to load TypeList value", err)
 						return err
 					} else {
-						logrus.Infoln("TypeList", key, value)
+						entry.val = append(entry.val, value)
 					}
 				}
+				repl.database.Set(key, entry)
+				logrus.Debugln("TypeList", key, value)
 			case rdb.TypeSet:
 				var length uint64
 				if length, _, err = rdb.LoadLen(buf); err != nil {
 					logrus.Warnln("failed to load TypeSet length", err)
 					return err
 				}
-				var value string
+
+				entry := SetEntry{
+					val:hashmap.New(uintptr(int(length))),
+				}
 				for ; length > 0; length-- {
-					if value, err = rdb.LoadString(buf); err != nil {
+					if value, err := rdb.LoadString(buf); err != nil {
 						return err
 					} else {
-						logrus.Infoln("TypeSet", key, value)
+						entry.val.Set(value, true)
 					}
 				}
+				repl.database.Set(key, entry)
+				logrus.Debugln("TypeSet", key, entry.val.String())
 			case rdb.TypeZSet, rdb.TypeZSet2:
 				var length uint64
 				if length, _, err = rdb.LoadLen(buf); err != nil {
 					logrus.Warnln("failed to load TypeZSet, TypeZSet2 length", err)
 					return err
 				}
+
+				entry := ZSetEntry{val:skiplist.New()}
 				var value string
 				var score float64
 				for ; length > 0; length-- {
@@ -344,13 +377,17 @@ func (repl *Replication) loadRdb(filename string) (err error) {
 						}
 						logrus.Infoln("TypeZSet", key, score, value)
 					}
+
+					entry.val.Set(score, value)
 				}
+				repl.database.Set(key, entry)
 			case rdb.TypeHash:
 				var length uint64
 				if length, _, err = rdb.LoadLen(buf); err != nil {
 					logrus.Warnln("failed to load TypeHash length", err)
 					return err
 				}
+				entry := HashEntry{val:hashmap.New(uintptr(int(length)))}
 				var field, value string
 				for ; length > 0; length-- {
 					if field, err = rdb.LoadString(buf); err != nil {
@@ -363,21 +400,27 @@ func (repl *Replication) loadRdb(filename string) (err error) {
 					}
 
 					logrus.Infoln("TypeHash", key, field, value)
+					entry.val.Set(field, value)
 				}
+				repl.database.Set(key, value)
 			case rdb.TypeListQuickList:
 				var length uint64
 				if length, _, err = rdb.LoadLen(buf); err != nil {
 					logrus.Warnln("failed to load TypeListQuickList length", err)
 					return err
 				}
+
+				entry := ListEntry{}
 				var value string
 				for ; length > 0; length-- {
 					if value, err = rdb.LoadString(buf); err != nil {
 						logrus.Warnln("failed to load TypeListQuickList value", err)
 						return err
 					}
-					logrus.Infoln("TypeListQuickList", length, key, ziplist.Load(value))
+					entry.val = append(entry.val, value)
+					logrus.Infoln("TypeListQuickList", key, ziplist.Load(value))
 				}
+
 			case rdb.TypeHashZipMap, rdb.TypeListZipList, rdb.TypeSetIntSet, rdb.TypeZSetZipList, rdb.TypeHashZipList:
 				var str string
 				if str, err = rdb.LoadString(buf); err != nil {
@@ -388,28 +431,55 @@ func (repl *Replication) loadRdb(filename string) (err error) {
 				switch opCode {
 				case rdb.TypeHashZipMap:
 					hash := zipmap.Load(str)
-					logrus.Infoln("TypeHashZipMap", key, hash)
+					entry := HashEntry{
+						val: hashmap.New(uintptr(10)),
+					}
+					for field, value := range hash{
+						entry.val.Set(field, value)
+					}
+					repl.database.Set(key, entry)
+					logrus.Infoln("TypeHashZipMap", key, hash, entry.val.String())
 				case rdb.TypeSetIntSet:
+					entry := SetEntry{val:hashmap.New(10)}
 					set := intset.Load(str)
+					for _, v := range set{
+						entry.val.Set(v, true)
+					}
 					logrus.Infoln("TypeSetIntSet", key, set)
 				case rdb.TypeZSetZipList:
 					// hash member => score
+					entry := ZSetEntry{val:skiplist.New()}
 					list := ziplist.Load(str)
 					size := len(list) / 2
 					for i := 0; i < size; i++ {
-						logrus.Infoln("TypeZSetZipList", "member=>score", key, list[2*i], list[2*i+1])
+						if score, err := strconv.ParseFloat(list[2*i+1], 64); err != nil{
+							err = errors.New(fmt.Sprintf("zset format error,%s", err))
+							logrus.Warnln("TypeZSetZipList parse err", err)
+						}else{
+							entry.val.Set(score, list[2*i])
+						}
 					}
+
+					repl.database.Set(key, entry)
 				case rdb.TypeHashZipList:
+					entry := HashEntry{
+						val: hashmap.New(uintptr(10)),
+					}
 					list := ziplist.Load(str)
 					size := len(list) / 2
 					for i := 0; i < size; i++ {
+						entry.val.Set(list[2*i],  list[2*i+1])
 						logrus.Infoln("TypeHashZipList", "field=>value", key, list[2*i], list[2*i+1])
 					}
+					repl.database.Set(key, entry)
 				case rdb.TypeListZipList:
+					entry := ListEntry{}
 					list := ziplist.Load(str)
 					for i := 0; i < len(list); i++ {
+						entry.val = append(entry.val, list[i])
 						logrus.Infoln("TypeListZipList", key, list[i])
 					}
+					repl.database.Set(key, entry)
 				}
 			case rdb.TypeStreamListPacks:
 				var length uint64

@@ -9,44 +9,47 @@ import (
 type Pool struct {
 	capacity int // max connection nums
 	conn     chan *redis.Conn
-	size     int // current size
 	addr     string
 }
 
-func initPool(capacity int, addr string) (*Pool, error) {
-	pool := Pool{
-		capacity: capacity,
-		conn:     nil,
-		addr:     addr,
+func (pool *Pool)Init() error{
+	if pool.addr == ""{
+		return errors.New("addr required")
 	}
 
 	pool.conn = make(chan *redis.Conn, pool.capacity)
-
 	for i := 0; i < pool.capacity; i++ {
 		if conn, err := redis.Connect(pool.addr); err != nil {
-			return nil, err
+			return err
 		} else {
 			pool.conn <- conn
 		}
 	}
 
-	return &pool, nil
+	return nil
 }
 
-func (pool *Pool) ExecCommand(ctx context.Context, command Command) {
+
+func (pool *Pool) ExecCommand(ctx context.Context, command redis.Command) {
 	select {
 	case conn := <-pool.conn:
 		defer func() { pool.conn <- conn }()
-
 		msg, err := conn.SendAndWaitReply(command.Serialize())
 		if err != nil {
-			command.WithError(err)
+			command.Error(err)
 			return
 		}
 
-		command.ParseResponse(msg)
+		switch msg.(type) {
+		case redis.ErrorMessage:
+			command.Error(errors.New(msg.String()))
+		case redis.NilMessage:
+			command.Error(errors.New(msg.String()))
+		default:
+			command.Parse(msg)
+		}
 	case <-ctx.Done():
-		command.WithError(errors.New("redis connection timeout"))
+		command.Error(errors.New("redis connection timeout"))
 	}
 }
 

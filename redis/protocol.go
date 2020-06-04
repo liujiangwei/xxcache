@@ -36,9 +36,23 @@ type Message interface {
 //	error    error
 //}
 
-var Nil = NewNilMessage()
 var OK = SimpleStringMessage("OK")
 var PONG = SimpleStringMessage("PONG")
+
+type NilMessage struct {
+}
+
+func (n NilMessage) String() string {
+	return "Nil"
+}
+
+func (n NilMessage) Serialize() string {
+	return "$-1\r\n"
+}
+
+func (n NilMessage) Protocol() Protocol {
+	return ProtocolBulkString
+}
 
 // redis error message
 type ArrayMessage []Message
@@ -72,7 +86,6 @@ const MessageEOF = "\r\n"
 // redis bulk string message
 type bulkStringMessage struct {
 	string
-	nil bool
 }
 
 func (message bulkStringMessage) String() string {
@@ -81,9 +94,6 @@ func (message bulkStringMessage) String() string {
 
 func (message bulkStringMessage) Serialize() string {
 	var str = string(ProtocolBulkString)
-	if message.nil {
-		return str + "-1" + MessageEOF
-	}
 
 	str += strconv.Itoa(len(message.string)) + MessageEOF
 
@@ -99,14 +109,6 @@ func (message bulkStringMessage) Protocol() Protocol {
 func NewBulkStringMessage(str string) *bulkStringMessage {
 	return &bulkStringMessage{
 		string: str,
-		nil:    false,
-	}
-}
-
-func NewNilMessage() *bulkStringMessage {
-	return &bulkStringMessage{
-		string: "",
-		nil:    true,
 	}
 }
 
@@ -116,11 +118,9 @@ type ErrorMessage string
 func (message ErrorMessage) String() string {
 	return string(message)
 }
-
 func (message ErrorMessage) Serialize() string {
 	return string(ProtocolError) + string(message) + MessageEOF
 }
-
 func (message ErrorMessage) Protocol() Protocol {
 	return ProtocolError
 }

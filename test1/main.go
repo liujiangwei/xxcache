@@ -11,6 +11,9 @@ import (
 )
 
 func main() {
+
+	logrus.Fatalln(time.Now().UnixNano() / 1000000)
+
 	zm := zipmap.New()
 	log.Println(zm.Set("abc", "v"))
 	log.Fatalln(zm)

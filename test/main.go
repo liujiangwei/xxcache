@@ -8,26 +8,22 @@ import (
 )
 
 func main() {
+
 	//testData()
-
-	cache, err := xxcache.New(xxcache.Option{
-		Addr: "localhost:6379",
-	})
-
+	client , err := xxcache.New("localhost:6379")
 	if err != nil {
-		logrus.Warnln(err)
+		logrus.Fatalln(err)
 	}
 
-	logrus.Infoln(cache.SyncWithRedis())
+	logrus.Infoln(client.Get("aae"))
 
-
-	logrus.Infoln(cache.Set("a", "aa"))
+	//time.Sleep(time.Second * 60)
 	//cache.Sync()
 }
 
 func testData() {
 	client := redis.NewClient(&redis.Options{})
-
+	logrus.Fatalln(client.Get("a").Result())
 	for i := 0; i < 1; i++ {
 		// string
 		client.Set(strconv.Itoa(i), i, 0)
