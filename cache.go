@@ -17,32 +17,16 @@ func init() {
 }
 
 type Cache struct {
-	connPool Pool
 	databases []*Database
 	sync.RWMutex
 }
 
-type MessageHandleFunc func(cache *Cache)
 func (cache *Cache) initDatabase(size int) {
 	cache.databases = make([]*Database, size)
 
 	for i := 0; i < size; i++ {
 		cache.databases[i] = &Database{dict: hashmap.HashMap{}}
 	}
-}
-
-func (cache *Cache) initPool (capacity int, addr string) error {
-	pool := Pool{
-		addr:addr,
-		capacity:capacity,
-	}
-
-	if err := pool.Init(); err != nil{
-		return err
-	}
-	cache.connPool = pool
-
-	return nil
 }
 
 func (cache *Cache) SelectDatabase(index int) *Database{

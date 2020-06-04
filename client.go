@@ -8,6 +8,7 @@ import (
 )
 
 type client struct {
+	RedisStringCommand
 	cache         Cache
 	database      *Database
 	databaseIndex int
@@ -68,7 +69,7 @@ func (c *client) PSetEX(key, value string, expiresMs uint64) (string, error) {
 	return rc.Result()
 }
 
-func (c *client) GET(key string) (string, error) {
+func (c *client) Get(key string) (string, error) {
 	cc := CacheStringCommand{}
 	cc.KeyCommand =  NewKeyCommand(key)
 	c.processCache(cc)
