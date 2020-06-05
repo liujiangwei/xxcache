@@ -64,7 +64,7 @@ func (message ArrayMessage) String() string {
 		str = append(str, m.String())
 	}
 
-	return strings.Join(str, "")
+	return strings.Join(str, " ")
 }
 
 func (message ArrayMessage) Serialize() string {

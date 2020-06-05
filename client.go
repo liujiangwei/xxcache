@@ -2,6 +2,8 @@ package xxcache
 
 import (
 	"context"
+	"github.com/liujiangwei/xxcache/cache"
+	database "github.com/liujiangwei/xxcache/database"
 	"github.com/liujiangwei/xxcache/redis"
 	"github.com/sirupsen/logrus"
 	"strconv"
@@ -9,10 +11,10 @@ import (
 
 type client struct {
 	RedisStringCommand
-	cache         Cache
-	database      *Database
+	cache         cache.Cache
+	database      *database.Database
 	databaseIndex int
-	connPool      Pool
+	connPool      redis.Pool
 }
 
 // 1.search in local databases
@@ -39,7 +41,7 @@ func (c *client) Select(index int) (string, error) {
 	c.processRedis(&rc)
 
 	if rc.Err == nil {
-		c.database = c.cache.databases[index]
+		c.database = c.cache.SelectDatabase(index)
 	}
 
 	return rc.Result()
@@ -75,7 +77,7 @@ func (c *client) Get(key string) (string, error) {
 	c.processCache(cc)
 	if cc.entry != nil{
 		logrus.Debugln("from local cache")
-		return cc.entry.val, nil
+		return cc.entry.Val, nil
 	}
 
 	rc := redis.StringCommand{}
@@ -214,18 +216,18 @@ func (c *client) MGet(keys ...string) ([]interface{}, error) {
 }
 
 func New(addr string) (*client, error) {
-	c := Cache{}
-	c.initDatabase(16)
+	c := cache.Cache{}
+	c.InitDatabase(16)
 
-	repl := Replication{
-		masterAddr: addr,
+	repl := redis.Replication{
+		MasterAddr: addr,
 	}
 	// sync rdb file
-	if err := repl.syncWithRedis(); err != nil {
+	if err := repl.SyncWithRedis(); err != nil {
 		return nil, err
 	}
 	// load keys to local cache
-	if err := repl.LoadRdbToCache(c); err != nil {
+	if err := c.LoadReplication(&repl); err != nil {
 		return nil, err
 	}
 
@@ -233,9 +235,9 @@ func New(addr string) (*client, error) {
 	go c.Watch(repl)
 
 	//init client redis conn pool
-	pool := Pool{
-		addr:     addr,
-		capacity: 3,
+	pool := redis.Pool{
+		Addr:     addr,
+		Capacity: 3,
 	}
 	if err := pool.Init(); err != nil {
 		return nil, err

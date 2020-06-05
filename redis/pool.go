@@ -1,25 +1,24 @@
-package xxcache
+package redis
 
 import (
 	"context"
 	"errors"
-	"github.com/liujiangwei/xxcache/redis"
 )
 
 type Pool struct {
-	capacity int // max connection nums
-	conn     chan *redis.Conn
-	addr     string
+	Capacity int // max connection nums
+	conn     chan *Conn
+	Addr     string
 }
 
 func (pool *Pool)Init() error{
-	if pool.addr == ""{
-		return errors.New("addr required")
+	if pool.Addr == ""{
+		return errors.New("addr is required")
 	}
 
-	pool.conn = make(chan *redis.Conn, pool.capacity)
-	for i := 0; i < pool.capacity; i++ {
-		if conn, err := redis.Connect(pool.addr); err != nil {
+	pool.conn = make(chan *Conn, pool.Capacity)
+	for i := 0; i < pool.Capacity; i++ {
+		if conn, err := Connect(pool.Addr); err != nil {
 			return err
 		} else {
 			pool.conn <- conn
@@ -30,7 +29,7 @@ func (pool *Pool)Init() error{
 }
 
 
-func (pool *Pool) ExecCommand(ctx context.Context, command redis.Command) {
+func (pool *Pool) ExecCommand(ctx context.Context, command Command) {
 	select {
 	case conn := <-pool.conn:
 		defer func() { pool.conn <- conn }()
@@ -41,9 +40,9 @@ func (pool *Pool) ExecCommand(ctx context.Context, command redis.Command) {
 		}
 
 		switch msg.(type) {
-		case redis.ErrorMessage:
+		case ErrorMessage:
 			command.Error(errors.New(msg.String()))
-		case redis.NilMessage:
+		case NilMessage:
 			command.Error(errors.New(msg.String()))
 		default:
 			command.Parse(msg)
@@ -53,7 +52,7 @@ func (pool *Pool) ExecCommand(ctx context.Context, command redis.Command) {
 	}
 }
 
-type ExecHandler func(conn *redis.Conn) error
+type ExecHandler func(conn *Conn) error
 
 func (pool *Pool) Exec(ctx context.Context, handler ExecHandler) error {
 	select {

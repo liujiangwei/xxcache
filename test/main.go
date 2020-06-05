@@ -5,6 +5,7 @@ import (
 	"github.com/liujiangwei/xxcache"
 	"github.com/sirupsen/logrus"
 	"strconv"
+	"time"
 )
 
 func main() {
@@ -17,7 +18,7 @@ func main() {
 
 	logrus.Infoln(client.Get("aae"))
 
-	//time.Sleep(time.Second * 60)
+	time.Sleep(time.Second * 60)
 	//cache.Sync()
 }
 

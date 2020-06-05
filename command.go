@@ -1,5 +1,7 @@
 package xxcache
 
+import "github.com/liujiangwei/xxcache/database"
+
 type RedisStringCommand interface {
 	Set(key,value string) (string, error)
 	SetNX(key, value string)(string, error)
@@ -24,7 +26,7 @@ type RedisStringCommand interface {
 
 type CacheCommand interface {
 	Key() string
-	Entry(entry Entry)
+	Entry(entry database.Entry)
 }
 
 type KeyCommand struct {
@@ -42,12 +44,12 @@ func NewKeyCommand(key string) KeyCommand {
 //
 type CacheStringCommand struct {
 	KeyCommand
-	entry *StringEntry
+	entry *database.StringEntry
 }
 
 // search key entry in local cache
-func (cmd CacheStringCommand) Entry(entry Entry) {
-	if entry, ok := entry.(*StringEntry); ok {
+func (cmd CacheStringCommand) Entry(entry database.Entry) {
+	if entry, ok := entry.(*database.StringEntry); ok {
 		cmd.entry = entry
 	}
 }

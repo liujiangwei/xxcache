@@ -1,4 +1,4 @@
-package xxcache
+package database
 
 import (
 	"github.com/cornelk/hashmap"
@@ -7,17 +7,17 @@ import (
 import "github.com/sean-public/fast-skiplist"
 
 type Database struct {
-	dict hashmap.HashMap
-	expires hashmap.HashMap
+	Dict    hashmap.HashMap
+	Expires hashmap.HashMap
 }
 
 func (db *Database) Get(key string) *Entry {
-	value, ok := db.dict.Get(key)
+	value, ok := db.Dict.Get(key)
 	if !ok {
 		return nil
 	}
 
-	if expires, ok := db.expires.Get(key); ok{
+	if expires, ok := db.Expires.Get(key); ok{
 		return value.(*Entry)
 	}else if expiresMs, ok := expires.(int64); !ok{
 		return nil
@@ -29,30 +29,30 @@ func (db *Database) Get(key string) *Entry {
 }
 
 func (db *Database) Set(key string, entry Entry) {
-	db.dict.Set(key, entry)
+	db.Dict.Set(key, entry)
 }
 
 
 type StringEntry struct {
-	val string
+	Val string
 }
 
 
 type ListEntry struct {
-	val []string
+	Val []string
 }
 
 
 type ZSetEntry struct {
-	val *skiplist.SkipList
+	Val *skiplist.SkipList
 }
 
 type HashEntry struct {
-	val *hashmap.HashMap
+	Val *hashmap.HashMap
 }
 
 type SetEntry struct {
-	val *hashmap.HashMap
+	Val *hashmap.HashMap
 }
 
 type Entry interface {
