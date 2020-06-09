@@ -13,7 +13,7 @@ type Command interface {
 	Error(err error)
 	//ReadOnly() bool
 	//Read(entry Entry)
-	//Set() bool
+	//set() bool
 }
 
 type BaseCommand struct {

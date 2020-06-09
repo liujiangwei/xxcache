@@ -7,12 +7,27 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"time"
 )
 
 type Conn struct {
 	conn   net.Conn
 	Reader *bufio.Reader
 	Writer *bufio.Writer
+	Timeout time.Duration
+	ReadTimeout time.Duration
+	WriteTimeout time.Duration
+}
+func (c *Conn) WithTimeout(duration time.Duration){
+	c.Timeout = duration
+}
+
+func (c *Conn) WithReadTimeout(duration time.Duration) {
+	c.ReadTimeout = duration
+}
+
+func (c *Conn) WithWriteTimeout(duration time.Duration) {
+	c.WriteTimeout = duration
 }
 
 func (c *Conn) Recv() (Message, error) {
@@ -233,6 +248,8 @@ func NewConn(conn net.Conn) *Conn {
 		Writer: bufio.NewWriter(conn),
 	}
 }
+
+
 
 func Connect(address string) (*Conn, error) {
 	conn, err := net.Dial("tcp", address)
