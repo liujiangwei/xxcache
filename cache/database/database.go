@@ -58,9 +58,20 @@ func (db *Database) SetString(key string, entry *StringEntry){
 	db.set(key, entry)
 }
 
+func (db *Database) SetList(key string, entry *ListEntry){
+	db.set(key, entry)
+}
 
 type ListEntry struct {
-	Val []string
+	val []string
+}
+
+func (entry *ListEntry)AppendTail(val string){
+	entry.val = append(entry.val, val)
+}
+
+func (entry *ListEntry)AppendHead(val string){
+	entry.val = append([]string{val}, entry.val...)
 }
 
 

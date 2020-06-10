@@ -14,11 +14,42 @@ func (cache *Cache) LPush(key string, values ...string) (int, error) {
 }
 
 func (cache *Cache) LPushX(key string, values ...string) (int, error) {
-	panic("implement me")
+	var entry *database.ListEntry
+	e := cache.Database.Get(key)
+	switch e.(type) {
+	case nil:
+		entry =  new(database.ListEntry)
+		cache.Database.SetList(key, entry)
+	case *database.ListEntry:
+		entry = e.(*database.ListEntry)
+	default:
+		return 0, ErrWrongType
+	}
+
+	for _, value := range values{
+		entry.AppendHead(value)
+	}
+	return len(values), nil
 }
 
 func (cache *Cache) RPush(key string, values ...string) (int, error) {
-	panic("implement me")
+	var entry *database.ListEntry
+	e := cache.Database.Get(key)
+	switch e.(type) {
+	case nil:
+		entry =  new(database.ListEntry)
+		cache.Database.SetList(key, entry)
+	case *database.ListEntry:
+		entry = e.(*database.ListEntry)
+	default:
+		return 0, ErrWrongType
+	}
+
+	for _, value := range values{
+		entry.AppendTail(value)
+	}
+
+	return len(values), nil
 }
 
 func (cache *Cache) RPushX(key string, values ...string) (int, error) {

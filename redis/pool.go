@@ -3,64 +3,120 @@ package redis
 import (
 	"context"
 	"errors"
+	"sync"
 )
 
+const defaultPoolCapacity = 20
+
 type Pool struct {
-	Capacity int // max connection nums
-	conn     chan *Conn
-	Addr     string
+	capacity         int // max connection nums
+	size             int // current size
+	connC            chan *Conn
+	addr             string
+	connOpenHandler  []func(conn *Conn) error
+	connCloseHandler []func(conn *Conn) error
+	l                sync.Mutex
 }
 
-func (pool *Pool)Init() error{
-	if pool.Addr == ""{
-		return errors.New("addr is required")
+func (pool *Pool) AddConnOpenHandler(handler func(conn *Conn) error) {
+	pool.connOpenHandler = append(pool.connOpenHandler, handler)
+}
+
+func (pool *Pool) Init(capacity int, addr string) {
+	pool.capacity = capacity
+	pool.addr = addr
+
+	if pool.capacity <= 0 {
+		pool.capacity = defaultPoolCapacity
 	}
 
-	pool.conn = make(chan *Conn, pool.Capacity)
-	for i := 0; i < pool.Capacity; i++ {
-		if conn, err := Connect(pool.Addr); err != nil {
+	pool.connC = make(chan *Conn, pool.capacity)
+}
+
+func (pool *Pool) Get(ctx context.Context) (*Conn, error) {
+	select {
+	case c := <-pool.connC:
+		return c, nil
+	default:
+		// no conn available, try create new conn
+		pool.l.Lock()
+		if pool.size < pool.capacity {
+			conn, err := pool.create()
+			if err != nil {
+				return nil, err
+			}
+			pool.size++
+			pool.connC <- conn
+		}
+		pool.l.Unlock()
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil, errors.New("no connection available")
+	case c := <-pool.connC:
+		return c, nil
+	}
+}
+
+func (pool Pool) create() (conn *Conn, err error) {
+	if conn, err = Connect(pool.addr); err != nil {
+		return conn, err
+	}
+
+	for _, handler := range pool.connOpenHandler {
+		if err := handler(conn); err != nil {
+			return conn, err
+		}
+	}
+
+	return conn, err
+}
+
+func (pool Pool) Put(conn *Conn) {
+	if conn != nil {
+		pool.connC <- conn
+	}
+}
+
+//Close close all conn opened in the pool
+func (pool Pool) Close() error {
+	for conn := range pool.connC {
+		for _, handler := range pool.connCloseHandler {
+			if err := handler(conn); err != nil {
+				return err
+			}
+		}
+
+		if err := conn.Close(); err != nil {
 			return err
-		} else {
-			pool.conn <- conn
 		}
 	}
 
 	return nil
 }
 
-
 func (pool *Pool) ExecCommand(ctx context.Context, command Command) {
-	select {
-	case conn := <-pool.conn:
-		defer func() { pool.conn <- conn }()
-		msg, err := conn.SendAndWaitReply(command.Serialize())
-		if err != nil {
-			command.Error(err)
-			return
-		}
+	conn, err := pool.Get(ctx)
+	defer pool.Put(conn)
 
-		switch msg.(type) {
-		case ErrorMessage:
-			command.Error(errors.New(msg.String()))
-		case NilMessage:
-			command.Error(errors.New(msg.String()))
-		default:
-			command.Parse(msg)
-		}
-	case <-ctx.Done():
-		command.Error(errors.New("redis connection timeout"))
+	if err != nil {
+		command.Error(err)
+		return
 	}
+
+	conn.ExecCommand(ctx, command)
 }
 
 type ExecHandler func(conn *Conn) error
 
 func (pool *Pool) Exec(ctx context.Context, handler ExecHandler) error {
-	select {
-	case conn := <-pool.conn:
-		defer func() { pool.conn <- conn }()
+	conn, err := pool.Get(ctx)
+	defer pool.Put(conn)
 
-		return handler(conn)
-	case <-ctx.Done():
-		return errors.New("redis connection timeout")
+	if err != nil {
+		return err
 	}
+
+	return handler(conn)
 }

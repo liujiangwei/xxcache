@@ -2,6 +2,7 @@ package redis
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,14 +12,15 @@ import (
 )
 
 type Conn struct {
-	conn   net.Conn
-	Reader *bufio.Reader
-	Writer *bufio.Writer
-	Timeout time.Duration
-	ReadTimeout time.Duration
+	conn         net.Conn
+	Reader       *bufio.Reader
+	Writer       *bufio.Writer
+	Timeout      time.Duration
+	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 }
-func (c *Conn) WithTimeout(duration time.Duration){
+
+func (c *Conn) WithTimeout(duration time.Duration) {
 	c.Timeout = duration
 }
 
@@ -50,6 +52,21 @@ func (c *Conn) SendAndWaitReply(message Message) (Message, error) {
 	}
 
 	return c.Recv()
+}
+
+func (c *Conn) ExecCommand(ctx context.Context, command Command) {
+	if msg, err := c.SendAndWaitReply(command.Serialize()); err != nil {
+		command.Error(err)
+	} else {
+		switch msg.(type) {
+		case ErrorMessage:
+			command.Error(errors.New(msg.String()))
+		case NilMessage:
+			command.Error(errors.New(msg.String()))
+		default:
+			command.Parse(msg)
+		}
+	}
 }
 
 func (c *Conn) Close() error {
@@ -175,7 +192,7 @@ func (c Conn) readMessage() (Message, error) {
 			return nil, err
 		}
 
-		if length == -1{
+		if length == -1 {
 			return NilMessage{}, nil
 		}
 
@@ -248,8 +265,6 @@ func NewConn(conn net.Conn) *Conn {
 		Writer: bufio.NewWriter(conn),
 	}
 }
-
-
 
 func Connect(address string) (*Conn, error) {
 	conn, err := net.Dial("tcp", address)

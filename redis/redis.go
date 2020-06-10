@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"strconv"
+	"time"
 )
 
 func ConvertToMessage(args ...string) Message {
@@ -14,26 +15,53 @@ func ConvertToMessage(args ...string) Message {
 }
 
 type Redis struct {
-	connPool      Pool
+	connPool Pool
 }
 
-type Options struct {
-	Addr string
+type Option struct {
+	Addr         string
+	MaxRetry     int
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	Timeout      time.Duration
+	PoolSize     int
+	Database     int
+	Password     string
 }
 
-func New(options Options) *Redis{
+func NewClient(option Option) *Redis {
 	redis := new(Redis)
-	redis.connPool = Pool{
-		Addr: options.Addr,
-		Capacity: 4,
+
+	redis.connPool.Init(option.PoolSize, option.Addr)
+
+	if option.Password != ""{
+		redis.connPool.AddConnOpenHandler(func(conn *Conn) error {
+			cmd := StringCommand{
+				BaseCommand: NewBaseCommand("auth", option.Password),
+			}
+
+			conn.ExecCommand(context.Background(), &cmd)
+
+			return cmd.Err
+		})
 	}
 
-	redis.connPool.Init()
+	if option.Database > 0 {
+		redis.connPool.AddConnOpenHandler(func(conn *Conn) error {
+			cmd := StringCommand{
+				BaseCommand: NewBaseCommand("select", strconv.Itoa(option.Database)),
+			}
+
+			conn.ExecCommand(context.Background(), &cmd)
+
+			return cmd.Err
+		})
+	}
 
 	return redis
 }
 
-func (redis *Redis) process(command Command)  {
+func (redis *Redis) process(command Command) {
 	redis.connPool.ExecCommand(context.Background(), command)
 }
 
@@ -90,7 +118,6 @@ func (redis *Redis) Get(key string) (string, error) {
 	rc := StringCommand{}
 	rc.BaseCommand = NewBaseCommand("get", key)
 	redis.process(&rc)
-
 	return rc.Val, rc.Err
 }
 
@@ -157,7 +184,7 @@ func (redis *Redis) IncrBy(key string, increment int) (int, error) {
 
 func (redis *Redis) IncrByFloat(key string, increment float64) (float64, error) {
 	rc := FloatCommand{
-		BaseCommand: NewBaseCommand("IncrByFloat", key, strconv.FormatFloat(increment,'f', -1, 64 )),
+		BaseCommand: NewBaseCommand("IncrByFloat", key, strconv.FormatFloat(increment, 'f', -1, 64)),
 	}
 	redis.process(&rc)
 
@@ -184,7 +211,7 @@ func (redis *Redis) DecrBy(key string, decrement int) (int, error) {
 
 func (redis *Redis) MSet(kv map[string]string) (string, error) {
 	var args = []string{"MSet"}
-	for k, v := range kv{
+	for k, v := range kv {
 		args = append(args, k, v)
 	}
 
@@ -199,7 +226,7 @@ func (redis *Redis) MSet(kv map[string]string) (string, error) {
 
 func (redis *Redis) MSetNX(kv map[string]string) (int, error) {
 	var args = []string{"MSetNX"}
-	for k, v := range kv{
+	for k, v := range kv {
 		args = append(args, k, v)
 	}
 

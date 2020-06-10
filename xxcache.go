@@ -42,22 +42,22 @@ func New(option Option) (client Client, err error) {
 		return client, err
 	}
 
-	go client.handleMessage(repl)
-
-	go client.handleError(repl)
+	go client.handleReplication(repl)
 
 	if err = repl.Load(); err != nil {
 		return client, err
 	}
 
+	go repl.Ack()
+
 	go repl.WaitForMessage()
 
-	client.redis = redis.New(redis.Options{Addr: option.RedisMasterAddr})
+	client.redis = redis.NewClient(redis.Option{Addr: option.RedisMasterAddr})
 
 	return client, err
 }
 
-func (client *Client) handleMessage(repl redis.Replication) {
+func (client *Client) handleReplication(repl redis.Replication) {
 	for {
 		select {
 		case message := <-repl.Messages:
@@ -68,15 +68,10 @@ func (client *Client) handleMessage(repl redis.Replication) {
 			if err := cache.HandleMessage(client.cache, message.Message); err != nil {
 				repl.Err <- err
 			}
-		}
-	}
-}
-
-func (client *Client) handleError(repl redis.Replication) {
-	for {
-		err := <-repl.Err
-		if err != nil {
-			logrus.Warnln("repl error", err)
+		case err := <-repl.Err:
+			if err != nil {
+				logrus.Warnln("repl error", err)
+			}
 		}
 	}
 }

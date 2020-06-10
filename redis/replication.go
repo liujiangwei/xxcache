@@ -70,14 +70,6 @@ func (repl *Replication) SyncWithRedis() error {
 		return err
 	}
 
-	go func() {
-		for range  time.NewTicker(time.Second).C{
-			if err := repl.ack(); err != nil{
-				repl.Err <- err
-			}
-		}
-	}()
-
 	return nil
 }
 
@@ -107,12 +99,22 @@ func (repl *Replication) ack() error {
 	cmd := StringCommand{
 		BaseCommand: NewBaseCommand("ReplConf", "ack", strconv.Itoa(repl.Offset)),
 	}
+
+	logrus.Debugln("ack", strconv.Itoa(repl.Offset))
 	if err := repl.conn.Send(cmd.Serialize()); err != nil {
 		err = errors.New("failed send ack to master," + err.Error())
 		return err
 	}
 
 	return nil
+}
+
+func (repl *Replication)Ack(){
+	for range  time.NewTicker(time.Second).C{
+		if err := repl.ack(); err != nil{
+			repl.Err <- err
+		}
+	}
 }
 
 func (repl *Replication) ping() error {
@@ -438,14 +440,14 @@ func (repl *Replication) Load() (err error) {
 					logrus.Warnln("failed to load TypeListQuickList length", err)
 					return err
 				}
-				var args = []string{"lPush", key}
-				var value string
+				var args = []string{"rPush", key}
 				for ; length > 0; length-- {
+					var value string
 					if value, err = rdb.LoadString(buf); err != nil {
 						logrus.Warnln("failed to load TypeListQuickList value", err)
 						return err
 					}
-					args = append(args, value)
+					args = append(args, ziplist.Load(value)...)
 				}
 
 				cmd := NewBaseCommand(args...)
@@ -511,7 +513,7 @@ func (repl *Replication) Load() (err error) {
 						Offset:   0,
 					}
 				case rdb.TypeListZipList:
-					var args = []string{"lPush", key}
+					var args = []string{"rPush", key}
 					list := ziplist.Load(str)
 					args = append(args, list...)
 					cmd := NewBaseCommand(args...)
