@@ -1,7 +1,7 @@
-package database
+package cache
 
 import "github.com/cornelk/hashmap"
 
-type SetEntry struct {
+type HashEntry struct {
 	Val *hashmap.HashMap
 }

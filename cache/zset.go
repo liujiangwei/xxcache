@@ -1,4 +1,4 @@
-package database
+package cache
 
 import skiplist "github.com/sean-public/fast-skiplist"
 
