@@ -16,6 +16,7 @@ type Option struct {
 	RedisMasterAddr string
 	RedisRdbFile    string
 	database        int
+	LogLevel        logrus.Level
 }
 
 type Client struct {
@@ -37,6 +38,8 @@ func New(option Option) (client Client, err error) {
 		MasterAddr: option.RedisMasterAddr,
 		RdbFile:    option.RedisRdbFile,
 	}
+
+	logrus.SetLevel(option.LogLevel)
 
 	if err = repl.SyncWithRedis(); err != nil {
 		return client, err

@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-import "github.com/sean-public/fast-skiplist"
-
 type Database struct {
 	dataDict    hashmap.HashMap
 	expiresDict hashmap.HashMap
@@ -48,43 +46,20 @@ func (db *Database) Get(key string) Entry {
 	return value.(Entry)
 }
 
-func (db *Database) set(key string, entry Entry) {
+func (db *Database) Set(key string, entry Entry) {
 	if entry != nil{
 		db.dataDict.Set(key, entry)
 	}
 }
 
+// string
 func (db *Database) SetString(key string, entry *StringEntry){
-	db.set(key, entry)
+	db.Set(key, entry)
 }
 
+// list
 func (db *Database) SetList(key string, entry *ListEntry){
-	db.set(key, entry)
-}
-
-type ListEntry struct {
-	val []string
-}
-
-func (entry *ListEntry)AppendTail(val string){
-	entry.val = append(entry.val, val)
-}
-
-func (entry *ListEntry)AppendHead(val string){
-	entry.val = append([]string{val}, entry.val...)
-}
-
-
-type ZSetEntry struct {
-	Val *skiplist.SkipList
-}
-
-type HashEntry struct {
-	Val *hashmap.HashMap
-}
-
-type SetEntry struct {
-	Val *hashmap.HashMap
+	db.Set(key, entry)
 }
 
 type Entry interface {

@@ -32,7 +32,7 @@ type Replication struct {
 
 	lastPing time.Time
 
-	conn       *Conn
+	conn *Conn
 	sync.Mutex
 }
 
@@ -82,7 +82,7 @@ func (repl *Replication) WaitForMessage() {
 			return
 		}
 
-		if strings.HasPrefix(strings.ToLower(message.String()), "ping"){
+		if strings.HasPrefix(strings.ToLower(message.String()), "ping") {
 			repl.lastPing = time.Now()
 			continue
 		}
@@ -109,9 +109,9 @@ func (repl *Replication) ack() error {
 	return nil
 }
 
-func (repl *Replication)Ack(){
-	for range  time.NewTicker(time.Second).C{
-		if err := repl.ack(); err != nil{
+func (repl *Replication) Ack() {
+	for range time.NewTicker(time.Second).C {
+		if err := repl.ack(); err != nil {
 			repl.Err <- err
 		}
 	}
@@ -131,38 +131,33 @@ func (repl *Replication) ping() error {
 	return nil
 }
 
-const RdbFile = "./tmp.rdb"
-
 func (repl *Replication) sync() (err error) {
 	cmd := StringCommand{
 		BaseCommand: NewBaseCommand("SYNC"),
 	}
 
 	if err = repl.conn.Send(cmd.Serialize()); err != nil {
-		err = errors.New("sync error," + err.Error())
-		return err
+		return errors.New("sync error," + err.Error())
 	}
 
 	var fp *os.File
-	if fp, err = os.OpenFile(RdbFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm); err != nil {
-		err = errors.New("failed to open rdb file," + err.Error())
-		return err
+	if fp, err = os.OpenFile(repl.RdbFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm); err != nil {
+		return errors.New("failed to open rdb file," + err.Error())
 	}
 
 	if protocol, length, err := repl.conn.ReadWithWriter(fp); err != nil {
-		err = errors.New("failed to save rdb file," + err.Error())
-		return err
+		return errors.New("failed to save rdb file," + err.Error())
 	} else {
-		logrus.Infoln("redis rdb file", Protocol(protocol), length)
+		logrus.Infoln("redis rdb file", protocol, length, repl.RdbFile)
 	}
 
-	return nil
+	return err
 }
 
-func (repl *Replication) Stat(duration time.Duration) {
-	for range time.NewTicker(duration).C {
-		logrus.Infoln(fmt.Sprintf("Stat Id [%s] Offset[%d]", repl.Id, repl.Offset))
-	}
+//psync from redis master
+func (repl *Replication) pSync() (err error){
+
+	return err
 }
 
 func (repl *Replication) SetReplicationId(id string) {
@@ -197,35 +192,26 @@ func (repl *Replication) Load() (err error) {
 			return err
 		}
 
-		var n int
 		switch opCode {
 		case rdb.OpCodeExpireTime:
 			// 4 byte
 			var expireS = make([]byte, 4)
-			if n, err = io.ReadFull(buf, expireS); err != nil {
+			if _, err = io.ReadFull(buf, expireS); err != nil {
 				return err
-			} else if n != 4 {
-				return errors.New("failed to load 4 bytes for OpCodeExpireTime")
 			}
 			expiresTime = uint64(binary.LittleEndian.Uint32(expireS) * 1000)
-			logrus.Infoln("OpCodeExpireTime", expiresTime)
-
 		case rdb.OpCodeExpireTimeMs:
 			var milliTime = make([]byte, 8)
-			if n, err = io.ReadFull(buf, milliTime); err != nil {
+			if _, err = io.ReadFull(buf, milliTime); err != nil {
 				return err
-			} else if n != 8 {
-				return errors.New("failed to load 8 bytes for milliTime")
 			}
 			expiresTime = binary.LittleEndian.Uint64(milliTime)
-			logrus.Infoln("OpCodeExpireTimeMs", expiresTime)
 		case rdb.OpCodeFreq:
 			var lfu byte
 			if lfu, err = buf.ReadByte(); err != nil {
 				return err
 			}
-
-			logrus.Infoln("OpCodeFreq", lfu)
+			logrus.Warnln("lfu", lfu)
 		case rdb.OpCodeIdle:
 			var lru uint64
 			if lru, _, err = rdb.LoadLen(buf); err != nil {
