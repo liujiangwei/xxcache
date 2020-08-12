@@ -15,5 +15,5 @@ func TestNew(t *testing.T) {
 		Database:     0,
 	})
 
-	 logrus.Infoln(client.Get("a"))
+	logrus.Infoln(client.Get("a"))
 }

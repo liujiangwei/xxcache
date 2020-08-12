@@ -155,7 +155,7 @@ func (repl *Replication) sync() (err error) {
 }
 
 //psync from redis master
-func (repl *Replication) pSync() (err error){
+func (repl *Replication) pSync() (err error) {
 
 	return err
 }

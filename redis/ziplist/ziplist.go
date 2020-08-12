@@ -51,6 +51,7 @@ func newIterator(str string) Iterator {
 
 	return iterator
 }
+
 // [29 0 0 0 19 0 0 0 2 0  0 7 102 105 101 108 100 45 48 9 7 118 97 108 117 101 45 48 255]
 func (iterator *Iterator) Next() (str string, ok bool) {
 	if iterator.val[iterator.pos] == ZipEnd {
@@ -115,16 +116,16 @@ func (iterator *Iterator) entry() (size, length uint32, str string) {
 			length = 5
 		default:
 			if encoding >= ZipIntImmMin && encoding <= ZipIntImmMax {
-				val := (encoding & ZipIntImmMask)-1
+				val := (encoding & ZipIntImmMask) - 1
 				str = strconv.Itoa(int(val))
-			}else{
+			} else {
 				panic("failed to decode zip list item")
 			}
 		}
 	}
 
-	if length > 0{
-		str  = iterator.val[iterator.pos + 1: iterator.pos + int(length)+1]
+	if length > 0 {
+		str = iterator.val[iterator.pos+1 : iterator.pos+int(length)+1]
 	}
 
 	return length, size, str
@@ -143,10 +144,10 @@ func (iterator *Iterator) decode() uint8 {
 	return encoding
 }
 
-func Load(encoded string) (list []string){
+func Load(encoded string) (list []string) {
 	iter := newIterator(encoded)
 
-	for str, ok := iter.Next(); ok; str, ok = iter.Next(){
+	for str, ok := iter.Next(); ok; str, ok = iter.Next() {
 		list = append(list, str)
 	}
 

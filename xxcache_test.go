@@ -32,11 +32,11 @@ func TestClient_Get(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := client.Set("a", "this is value for a"); err != nil{
+	if _, err := client.Set("a", "this is value for a"); err != nil {
 		t.Fatal("failed to set a", err)
 	}
 
-	if val, err := client.Get("a");err != nil || val != "this is value for a"{
+	if val, err := client.Get("a"); err != nil || val != "this is value for a" {
 		t.Fatal("failed to get a", val, err)
 	}
 }

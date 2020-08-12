@@ -124,11 +124,12 @@ type InterfaceArrayCommand struct {
 	BaseCommand
 	Val []interface{}
 }
+
 func (i *InterfaceArrayCommand) Parse(message Message) {
-	if messages, ok := message.(ArrayMessage); ok{
-		for _, m := range messages{
+	if messages, ok := message.(ArrayMessage); ok {
+		for _, m := range messages {
 			switch m.(type) {
-			case NilMessage,ErrorMessage:
+			case NilMessage, ErrorMessage:
 				i.Val = append(i.Val, errors.New(m.String()))
 			default:
 				i.Val = append(i.Val, m.String())

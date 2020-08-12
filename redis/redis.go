@@ -34,7 +34,7 @@ func NewClient(option Option) *Redis {
 
 	redis.connPool.Init(option.PoolSize, option.Addr)
 
-	if option.Password != ""{
+	if option.Password != "" {
 		redis.connPool.AddConnOpenHandler(func(conn *Conn) error {
 			cmd := StringCommand{
 				BaseCommand: NewBaseCommand("auth", option.Password),

@@ -78,7 +78,6 @@ func (client Client) Get(key string) (string, error) {
 	return client.cache.Get(key)
 }
 
-func (client Client) Set(key string, value string) (string, error){
+func (client Client) Set(key string, value string) (string, error) {
 	return client.redis.Set(key, value)
 }
-
