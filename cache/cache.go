@@ -8,6 +8,15 @@ import (
 type Cache struct {
 	Database Database
 }
+
+func (cache *Cache) get(key string) interface{} {
+	return cache.Database.Get(key)
+}
+
+func (cache *Cache) expire(key string, seconds int)  {
+
+}
+
 func (cache *Cache) LPush(key string, values ...string) (int, error) {
 	panic("implement me")
 }
@@ -109,4 +118,7 @@ func (cache *Cache) BRPopLPush(keyFrom, keyDestination string, timeout time.Dura
 
 var ErrKeyNil = errors.New("redis nil")
 var ErrWrongType =  errors.New("wrong type,operation against a key holding the wrong kind of value")
+var ErrOffsetOutOfRange = errors.New("offset is out of range")
+var ErrIntegerOrOutOfRange =errors.New("value is not an integer or out of range")
+
 var OK = "OK"

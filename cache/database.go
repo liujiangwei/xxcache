@@ -16,20 +16,15 @@ func (db *Database) expires(key string) bool{
 		return false
 	}
 
-	if ms, ok := expires.(int64); ok{
-		if ms == 0{
-			return false
-		}
-
-		if ms * 1000 > time.Now().UnixNano(){
-			return false
-		}else{
-			db.expiresDict.Del(key)
-			return true
-		}
+	if ex, ok := expires.(time.Time); ok{
+		return ex.Before(time.Now())
 	}else{
-		return  false
+		return false
 	}
+}
+
+func (db *Database) Expires(key string, duration time.Duration)  {
+	db.expiresDict.Set(key, time.Now().Add(duration))
 }
 
 func (db *Database) Get(key string) Entry {
@@ -58,7 +53,7 @@ func (db *Database) SetString(key string, entry *StringEntry){
 }
 
 // list
-func (db *Database) SetList(key string, entry *ListEntry){
+func (db *Database) SetList(key string, entry ListEntry){
 	db.Set(key, entry)
 }
 

@@ -6,7 +6,7 @@ import (
 
 type StringCommand interface {
 	Set(key, value string) (string, error)
-	SetNX(key, value string) (string, error)
+	SetNX(key, value string) (int, error)
 	SetEX(key, value string, expires uint64) (string, error)
 	PSetEX(key, value string, expires uint64) (string, error)
 	Get(key string) (string, error)
