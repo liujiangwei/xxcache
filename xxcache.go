@@ -22,7 +22,7 @@ type Option struct {
 type Client struct {
 	option Option
 	redis  *redis.Redis
-	cache  *cache.Database
+	cache  *cache.Cache
 }
 
 const redisMasterAddr = "127.0.0.1:6379"
@@ -31,7 +31,7 @@ const redisRdbFile = "temp.rdb"
 func New(option Option) (client Client, err error) {
 	client.option = option
 
-	client.cache = new(cache.Database)
+	client.cache = new(cache.Cache)
 	prepareOption(&option)
 
 	repl := redis.Replication{

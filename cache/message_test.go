@@ -6,7 +6,7 @@ import (
 )
 
 func TestHandleMessage(t *testing.T) {
-	cache := new(Database)
+	cache := new(Cache)
 	for _, cmd := range testCommandList() {
 		if err := HandleMessage(cache, cmd.Serialize()); err != nil {
 			t.Fatal(cmd.Serialize(), err)

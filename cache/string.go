@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-func (db *Database) Set(key, value string) (string, error) {
-	db.dataDict.Set(key, tryInt64(value))
+func (c *Cache) Set(key, value string) (string, error) {
+	c.dataDict.Set(key, tryInt64(value))
 	return OK, nil
 }
 
@@ -23,8 +23,8 @@ func tryInt64(value string) interface{} {
 }
 
 // SET if Not eXists
-func (db *Database) SetNX(key, value string) (int, error) {
-	if _, loaded := db.dataDict.GetOrInsert(key, tryInt64(value)); loaded {
+func (c *Cache) SetNX(key, value string) (int, error) {
+	if _, loaded := c.dataDict.GetOrInsert(key, tryInt64(value)); loaded {
 		return 1, nil
 	} else {
 		return 0, nil
@@ -32,16 +32,16 @@ func (db *Database) SetNX(key, value string) (int, error) {
 }
 
 // SETEX key seconds value
-func (db *Database) SetEX(key, value string, expires int64) (string, error) {
-	db.dataDict.Set(key, tryInt64(value))
-	db.expiresDict.Set(key, time.Second*time.Duration(expires))
+func (c *Cache) SetEX(key, value string, expires int64) (string, error) {
+	c.dataDict.Set(key, tryInt64(value))
+	c.expiresDict.Set(key, time.Second*time.Duration(expires))
 
 	return OK, nil
 }
 
-func (db *Database) PSetEX(key, value string, expires int64) (string, error) {
-	db.dataDict.Set(key, tryInt64(value))
-	db.expiresDict.Set(key, time.Millisecond*time.Duration(expires))
+func (c *Cache) PSetEX(key, value string, expires int64) (string, error) {
+	c.dataDict.Set(key, tryInt64(value))
+	c.expiresDict.Set(key, time.Millisecond*time.Duration(expires))
 
 	return OK, nil
 }
@@ -60,8 +60,8 @@ func fmtString(v interface{}) (str string, err error) {
 }
 
 // if key is expired
-func (db *Database) expired(key string) bool {
-	v, ok := db.expiresDict.Get(key)
+func (c *Cache) expired(key string) bool {
+	v, ok := c.expiresDict.Get(key)
 	if !ok || v == nil {
 		return false
 	}
@@ -74,28 +74,28 @@ func (db *Database) expired(key string) bool {
 }
 
 // set expire time after duration from now
-func (db *Database) expires(key string, duration time.Duration) {
-	db.expiresDict.Set(key, time.Now().Add(duration))
+func (c *Cache) expires(key string, duration time.Duration) {
+	c.expiresDict.Set(key, time.Now().Add(duration))
 }
 
-func (db *Database) Get(key string) (string, error) {
-	val, ok := db.dataDict.Get(key)
-	if !ok || db.expired(key) {
+func (c *Cache) Get(key string) (string, error) {
+	val, ok := c.dataDict.Get(key)
+	if !ok || c.expired(key) {
 		return "", ErrKeyNil
 	}
 
 	return fmtString(val)
 }
 
-func (db *Database) GetSet(key, value string) (string, error) {
-	old, err := db.Get(key)
-	db.dataDict.Set(key, tryInt64(value))
+func (c *Cache) GetSet(key, value string) (string, error) {
+	old, err := c.Get(key)
+	c.dataDict.Set(key, tryInt64(value))
 	return old, err
 }
 
-func (db *Database) StrLen(key string) (int, error) {
-	val, ok := db.dataDict.Get(key)
-	if !ok || db.expired(key) {
+func (c *Cache) StrLen(key string) (int, error) {
+	val, ok := c.dataDict.Get(key)
+	if !ok || c.expired(key) {
 		return 0, nil
 	}
 
@@ -106,10 +106,10 @@ func (db *Database) StrLen(key string) (int, error) {
 	}
 }
 
-func (db *Database) Append(key string, value string) (int, error) {
-	old, ok := db.dataDict.Get(key)
-	if !ok || db.expired(key) {
-		db.dataDict.Set(key, tryInt64(value))
+func (c *Cache) Append(key string, value string) (int, error) {
+	old, ok := c.dataDict.Get(key)
+	if !ok || c.expired(key) {
+		c.dataDict.Set(key, tryInt64(value))
 		return len(value), nil
 	}
 
@@ -119,25 +119,25 @@ func (db *Database) Append(key string, value string) (int, error) {
 		value = old + value
 	}
 
-	db.dataDict.Set(key, tryInt64(value))
+	c.dataDict.Set(key, tryInt64(value))
 	return len(value), nil
 }
 
-func (db *Database) SetRange(key string, pos int, replace string) (int, error) {
+func (c *Cache) SetRange(key string, pos int, replace string) (int, error) {
 	if pos < 0 {
 		return 0, ErrOffsetOutOfRange
 	}
 
 	// key is not exist or expired
-	old, ok := db.dataDict.Get(key)
-	if !ok || db.expired(key) {
+	old, ok := c.dataDict.Get(key)
+	if !ok || c.expired(key) {
 		str := make([]byte, pos)
 		for i := 0; i < pos; i++ {
 			str[i] = '\x00'
 		}
 
 		replace = string(str) + replace
-		db.dataDict.Set(key, tryInt64(replace))
+		c.dataDict.Set(key, tryInt64(replace))
 		return len(replace), nil
 	}
 
@@ -156,13 +156,13 @@ func (db *Database) SetRange(key string, pos int, replace string) (int, error) {
 		}
 	}
 
-	db.dataDict.Set(key, tryInt64(string(str)))
+	c.dataDict.Set(key, tryInt64(string(str)))
 	return len(str), nil
 }
 
-func (db *Database) GetRange(key string, start, end int) (string, error) {
-	old, ok := db.dataDict.Get(key)
-	if !ok || db.expired(key) {
+func (c *Cache) GetRange(key string, start, end int) (string, error) {
+	old, ok := c.dataDict.Get(key)
+	if !ok || c.expired(key) {
 		return "", nil
 	}
 	oldStr, err := fmtString(old)
@@ -187,14 +187,14 @@ func (db *Database) GetRange(key string, start, end int) (string, error) {
 	return string(str), nil
 }
 
-func (db *Database) Incr(key string) (int, error) {
-	return db.IncrBy(key, 1)
+func (c *Cache) Incr(key string) (int, error) {
+	return c.IncrBy(key, 1)
 }
 
 var ErrIncrChanged = errors.New("value is reset")
 
-func (db *Database) IncrBy(key string, increment int64) (int, error) {
-	actual, ok := db.dataDict.GetOrInsert(key, increment)
+func (c *Cache) IncrBy(key string, increment int64) (int, error) {
+	actual, ok := c.dataDict.GetOrInsert(key, increment)
 	if !ok {
 		return int(increment), nil
 	}
@@ -221,15 +221,15 @@ func (db *Database) IncrBy(key string, increment int64) (int, error) {
 		return 0, ErrWrongType
 	}
 
-	if db.dataDict.Cas(key, actual, val) {
+	if c.dataDict.Cas(key, actual, val) {
 		return n, nil
 	} else {
 		return 0, ErrIncrChanged
 	}
 }
 
-func (db *Database) IncrByFloat(key string, increment float64) (float64, error) {
-	actual, ok := db.dataDict.GetOrInsert(key, increment)
+func (c *Cache) IncrByFloat(key string, increment float64) (float64, error) {
+	actual, ok := c.dataDict.GetOrInsert(key, increment)
 	if !ok {
 		return increment, nil
 	}
@@ -237,14 +237,14 @@ func (db *Database) IncrByFloat(key string, increment float64) (float64, error) 
 	switch val := actual.(type) {
 	case float64:
 		val += increment
-		if db.dataDict.Cas(key, actual, val) {
+		if c.dataDict.Cas(key, actual, val) {
 			return val, nil
 		} else {
 			return 0, ErrIncrChanged
 		}
 	case int:
 		f := float64(val) + increment
-		if db.dataDict.Cas(key, actual, f) {
+		if c.dataDict.Cas(key, actual, f) {
 			return f, nil
 		} else {
 			return 0, ErrIncrChanged
@@ -254,27 +254,27 @@ func (db *Database) IncrByFloat(key string, increment float64) (float64, error) 
 	}
 }
 
-func (db *Database) Decr(key string) (int, error) {
-	return db.IncrBy(key, -1)
+func (c *Cache) Decr(key string) (int, error) {
+	return c.IncrBy(key, -1)
 }
 
-func (db *Database) DecrBy(key string, increment int64) (int, error) {
-	return db.IncrBy(key, increment)
+func (c *Cache) DecrBy(key string, increment int64) (int, error) {
+	return c.IncrBy(key, increment)
 }
 
-func (db *Database) MSet(kv map[string]string) string {
+func (c *Cache) MSet(kv map[string]string) string {
 	for k, v := range kv {
-		db.dataDict.Set(k, tryInt64(v))
+		c.dataDict.Set(k, tryInt64(v))
 	}
 
 	return OK
 }
 
-func (db *Database) MSetNX(kv map[string]string) int {
+func (c *Cache) MSetNX(kv map[string]string) int {
 	n := 0
 
 	for k, v := range kv {
-		if _, loaded := db.dataDict.GetOrInsert(k, tryInt64(v)); loaded {
+		if _, loaded := c.dataDict.GetOrInsert(k, tryInt64(v)); loaded {
 			n++
 		}
 	}
@@ -282,10 +282,10 @@ func (db *Database) MSetNX(kv map[string]string) int {
 	return n
 }
 
-func (db *Database) MGet(keys ...string) []interface{} {
+func (c *Cache) MGet(keys ...string) []interface{} {
 	var values = make([]interface{}, len(keys))
 	for id, k := range keys {
-		v, err := db.Get(k)
+		v, err := c.Get(k)
 		if err != nil {
 			values[id] = err
 		} else {

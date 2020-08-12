@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func HandleMessage(cache *Database, message redis.Message) (err error) {
+func HandleMessage(cache *Cache, message redis.Message) (err error) {
 	logrus.Infoln(message)
 	messages, ok := message.(redis.ArrayMessage)
 	if !ok {

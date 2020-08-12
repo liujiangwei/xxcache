@@ -6,7 +6,7 @@ import (
 )
 
 func TestDatabase_Incr(t *testing.T) {
-	db := Database{}
+	db := Cache{}
 
 	wg := sync.WaitGroup{}
 	wg.Add(200)
