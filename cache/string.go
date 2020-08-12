@@ -14,7 +14,7 @@ func (db *Database) Set(key, value string) (string, error) {
 func tryInt64(value string) interface{} {
 	if n, err := strconv.Atoi(value); err == nil {
 		// try convert string value to int64
-		return int64(n)
+		return n
 	} else if f, err := strconv.ParseFloat(value, 64); err == nil {
 		return f
 	}
@@ -239,6 +239,13 @@ func (db *Database) IncrByFloat(key string, increment float64) (float64, error) 
 		val += increment
 		if db.dataDict.Cas(key, actual, val) {
 			return val, nil
+		} else {
+			return 0, ErrIncrChanged
+		}
+	case int:
+		f := float64(val) + increment
+		if db.dataDict.Cas(key, actual, f) {
+			return f, nil
 		} else {
 			return 0, ErrIncrChanged
 		}
