@@ -3,12 +3,10 @@ package cache
 import (
 	"errors"
 	"github.com/liujiangwei/xxcache/redis"
-	"github.com/sirupsen/logrus"
 	"strings"
 )
 
 func HandleMessage(cache *Cache, message redis.Message) (err error) {
-	logrus.Infoln(message)
 	messages, ok := message.(redis.ArrayMessage)
 	if !ok {
 		return errors.New("error redis message, need array message")

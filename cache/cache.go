@@ -13,6 +13,17 @@ type Cache struct {
 	lock        sync.Mutex
 }
 
+func (c *Cache)Del(key string) int{
+	if _, err := c.Get(key); err != nil{
+		return 0
+	}else{
+		c.dataDict.Del(key)
+		c.expiresDict.Del(key)
+	}
+
+	return 1
+}
+
 func (c *Cache) LPush(key string, values ...string) (int, error) {
 	panic("implement me")
 }

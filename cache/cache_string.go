@@ -13,9 +13,10 @@ func (c *Cache) Set(key, value string) (string, error) {
 
 func tryInt64(value string) interface{} {
 	if n, err := strconv.Atoi(value); err == nil {
-		// try convert string value to int64
+		// try convert string value to int
 		return n
 	} else if f, err := strconv.ParseFloat(value, 64); err == nil {
+		// try float
 		return f
 	}
 
@@ -25,23 +26,23 @@ func tryInt64(value string) interface{} {
 // SET if Not eXists
 func (c *Cache) SetNX(key, value string) (int, error) {
 	if _, loaded := c.dataDict.GetOrInsert(key, tryInt64(value)); loaded {
-		return 1, nil
-	} else {
 		return 0, nil
+	} else {
+		return 1, nil
 	}
 }
 
 // SETEX key seconds value
 func (c *Cache) SetEX(key, value string, expires int64) (string, error) {
 	c.dataDict.Set(key, tryInt64(value))
-	c.expiresDict.Set(key, time.Second*time.Duration(expires))
+	c.expires(key, time.Second*time.Duration(expires))
 
 	return OK, nil
 }
 
-func (c *Cache) PSetEX(key, value string, expires int64) (string, error) {
+func (c *Cache) PSetEX(key, value string, expiresMs int64) (string, error) {
 	c.dataDict.Set(key, tryInt64(value))
-	c.expiresDict.Set(key, time.Millisecond*time.Duration(expires))
+	c.expires(key, time.Millisecond*time.Duration(expiresMs))
 
 	return OK, nil
 }
@@ -52,6 +53,10 @@ func fmtString(v interface{}) (str string, err error) {
 		str = strconv.Itoa(value)
 	case int64:
 		str = strconv.Itoa(int(value))
+	case float64:
+		str = strconv.FormatFloat(value, 'f', -1, 64)
+	case string:
+		str = value
 	default:
 		err = ErrWrongType
 	}
@@ -66,11 +71,18 @@ func (c *Cache) expired(key string) bool {
 		return false
 	}
 
+	var expired bool
 	if expires, ok := v.(time.Time); ok {
-		return expires.Before(time.Now())
+		expired = expires.Before(time.Now())
 	}
 
-	return false
+	// delete expired key value
+	if expired {
+		c.dataDict.Del(key)
+		c.expiresDict.Del(key)
+	}
+
+	return expired
 }
 
 // set expire time after duration from now
@@ -83,7 +95,6 @@ func (c *Cache) Get(key string) (string, error) {
 	if !ok || c.expired(key) {
 		return "", ErrKeyNil
 	}
-
 	return fmtString(val)
 }
 
@@ -147,6 +158,10 @@ func (c *Cache) SetRange(key string, pos int, replace string) (int, error) {
 		return 0, err
 	}
 	str := []byte(oldStr)
+	for i := len(str); i < pos; i++{
+		str = append(str, '\x00')
+	}
+
 	for i := 0; i < len(replace); i++ {
 		p := pos + i
 		if p < len(str) {
@@ -179,9 +194,14 @@ func (c *Cache) GetRange(key string, start, end int) (string, error) {
 
 	var str []byte
 	for i := start; i <= end; i++ {
+		if i < 0 {
+			continue
+		}
+
 		if i >= len(oldStr) {
 			break
 		}
+
 		str = append(str, oldStr[i])
 	}
 	return string(str), nil
@@ -258,11 +278,12 @@ func (c *Cache) Decr(key string) (int, error) {
 	return c.IncrBy(key, -1)
 }
 
-func (c *Cache) DecrBy(key string, increment int64) (int, error) {
-	return c.IncrBy(key, increment)
+func (c *Cache) DecrBy(key string, decrement int64) (int, error) {
+	return c.IncrBy(key, -decrement)
+
 }
 
-func (c *Cache) MSet(kv map[string]string) string {
+func (c *Cache) MSet(kv map[string]string) (ok string) {
 	for k, v := range kv {
 		c.dataDict.Set(k, tryInt64(v))
 	}
@@ -274,7 +295,7 @@ func (c *Cache) MSetNX(kv map[string]string) int {
 	n := 0
 
 	for k, v := range kv {
-		if _, loaded := c.dataDict.GetOrInsert(k, tryInt64(v)); loaded {
+		if _, loaded := c.dataDict.GetOrInsert(k, tryInt64(v)); !loaded {
 			n++
 		}
 	}
