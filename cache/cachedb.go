@@ -14,9 +14,33 @@ func (c *Cache)Del(key string) (n int){
 	return n
 }
 
-func (c *Cache)Flush() {
+func (c *Cache) Flush() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.dataDict = &SyncMapDatabase{}
 	c.expiresDict = &SyncMapDatabase{}
+}
+
+func (c *Cache) Exists(keys ...string) (n int){
+	for _, key := range keys{
+		if _, ok := c.dataDict.Load(key); ok{
+			n++
+		}
+	}
+
+	return n
+}
+
+func (c *Cache)Type(key string) string {
+	v, ok := c.get(key)
+	if !ok{
+		return "none"
+	}
+
+	switch v.(type) {
+	case HashEntry:
+		return "hash"
+	default:
+		return "string"
+	}
 }
