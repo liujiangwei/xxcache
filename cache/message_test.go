@@ -1,9 +1,9 @@
 package cache
 
 //func TestHandleMessage(t *testing.T) {
-//	cache := new(Cache)
+//	client := new(Cache)
 //	for _, cmd := range testCommandList() {
-//		if err := HandleMessage(cache, cmd.Serialize()); err != nil {
+//		if err := HandleMessage(client, cmd.Serialize()); err != nil {
 //			t.Fatal(cmd.Serialize(), err)
 //		}
 //	}
