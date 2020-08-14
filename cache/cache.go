@@ -2,27 +2,78 @@ package cache
 
 import (
 	"errors"
-	"github.com/cornelk/hashmap"
 	"sync"
 	"time"
 )
 
-type Cache struct {
-	dataDict    hashmap.HashMap
-	expiresDict hashmap.HashMap
-	lock        sync.Mutex
-}
-
-func (c *Cache)Del(key string) int{
-	if _, err := c.Get(key); err != nil{
-		return 0
-	}else{
-		c.dataDict.Del(key)
-		c.expiresDict.Del(key)
+func New() *Cache{
+	cache :=  Cache{
+		dataDict:&SyncMapDatabase{},
+		expiresDict:&SyncMapDatabase{},
 	}
 
-	return 1
+	return &cache
 }
+
+type Cache struct {
+	dataDict    Database
+	expiresDict Database
+	lock        sync.RWMutex
+
+	expiredOnce int
+	size int
+}
+
+func (c *Cache)Del(key string) (n int){
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	if _,ok := c.get(key); ok{
+		n =1
+	}
+
+	c.dataDict.Delete(key)
+	c.expiresDict.Delete(key)
+
+	return n
+}
+
+// 定时服务
+func (c *Cache) Cron() {
+	go c.cronExpire(time.Second * 2)
+}
+
+
+// expired key
+func (c *Cache) cronExpire(duration time.Duration) {
+	for range time.NewTicker(duration).C{
+		c.lock.Lock()
+		c.dataDict.Range(func(key interface{}, value interface{}) bool {
+			expire, ok := value.(time.Time)
+			if !ok{
+				c.expiresDict.Delete(key)
+			}
+
+			if expire.Before(time.Now()){
+				c.expiresDict.Delete(key)
+				c.dataDict.Delete(key)
+			}
+
+			return true
+		})
+
+		c.lock.Unlock()
+	}
+}
+
+
+func (c *Cache)Flush() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.dataDict = &SyncMapDatabase{}
+	c.expiresDict = &SyncMapDatabase{}
+}
+
 
 func (c *Cache) LPush(key string, values ...string) (int, error) {
 	panic("implement me")

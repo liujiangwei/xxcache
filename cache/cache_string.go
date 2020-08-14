@@ -1,13 +1,15 @@
 package cache
 
 import (
-	"errors"
 	"strconv"
 	"time"
 )
 
 func (c *Cache) Set(key, value string) (string, error) {
-	c.dataDict.Set(key, tryInt64(value))
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	c.dataDict.Store(key, tryInt64(value))
 	return OK, nil
 }
 
@@ -25,7 +27,10 @@ func tryInt64(value string) interface{} {
 
 // SET if Not eXists
 func (c *Cache) SetNX(key, value string) (int, error) {
-	if _, loaded := c.dataDict.GetOrInsert(key, tryInt64(value)); loaded {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	if _, loaded := c.dataDict.LoadOrStore(key, tryInt64(value)); loaded {
 		return 0, nil
 	} else {
 		return 1, nil
@@ -34,14 +39,20 @@ func (c *Cache) SetNX(key, value string) (int, error) {
 
 // SETEX key seconds value
 func (c *Cache) SetEX(key, value string, expires int64) (string, error) {
-	c.dataDict.Set(key, tryInt64(value))
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	c.dataDict.Store(key, tryInt64(value))
 	c.expires(key, time.Second*time.Duration(expires))
 
 	return OK, nil
 }
 
 func (c *Cache) PSetEX(key, value string, expiresMs int64) (string, error) {
-	c.dataDict.Set(key, tryInt64(value))
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	c.dataDict.Store(key, tryInt64(value))
 	c.expires(key, time.Millisecond*time.Duration(expiresMs))
 
 	return OK, nil
@@ -66,7 +77,7 @@ func fmtString(v interface{}) (str string, err error) {
 
 // if key is expired
 func (c *Cache) expired(key string) bool {
-	v, ok := c.expiresDict.Get(key)
+	v, ok := c.expiresDict.Load(key)
 	if !ok || v == nil {
 		return false
 	}
@@ -78,34 +89,69 @@ func (c *Cache) expired(key string) bool {
 
 	// delete expired key value
 	if expired {
-		c.dataDict.Del(key)
-		c.expiresDict.Del(key)
+		c.dataDict.Delete(key)
+		c.expiresDict.Delete(key)
 	}
 
 	return expired
 }
 
 // set expire time after duration from now
+// if duration < 0, remove expire time
 func (c *Cache) expires(key string, duration time.Duration) {
-	c.expiresDict.Set(key, time.Now().Add(duration))
+	if duration <= 0{
+		c.expiresDict.Delete(key)
+	}else{
+		c.expiresDict.Store(key, time.Now().Add(duration))
+	}
+}
+
+func (c *Cache) get(key string) (value interface{},ok bool){
+	val, ok := c.dataDict.Load(key)
+	if !ok{
+		return val, ok
+	}
+
+	if c.expired(key) {
+		val = nil
+		ok = false
+	}
+
+	return val, ok
 }
 
 func (c *Cache) Get(key string) (string, error) {
-	val, ok := c.dataDict.Get(key)
-	if !ok || c.expired(key) {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	val, ok := c.get(key)
+	if !ok{
 		return "", ErrKeyNil
 	}
+
 	return fmtString(val)
 }
 
 func (c *Cache) GetSet(key, value string) (string, error) {
-	old, err := c.Get(key)
-	c.dataDict.Set(key, tryInt64(value))
-	return old, err
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	old, ok := c.get(key)
+
+	c.dataDict.Store(key, tryInt64(value))
+
+	if !ok{
+		return "", ErrKeyNil
+	}
+
+	return fmtString(old)
 }
 
 func (c *Cache) StrLen(key string) (int, error) {
-	val, ok := c.dataDict.Get(key)
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	val, ok := c.dataDict.Load(key)
 	if !ok || c.expired(key) {
 		return 0, nil
 	}
@@ -118,9 +164,12 @@ func (c *Cache) StrLen(key string) (int, error) {
 }
 
 func (c *Cache) Append(key string, value string) (int, error) {
-	old, ok := c.dataDict.Get(key)
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	old, ok := c.dataDict.Load(key)
 	if !ok || c.expired(key) {
-		c.dataDict.Set(key, tryInt64(value))
+		c.dataDict.Store(key, tryInt64(value))
 		return len(value), nil
 	}
 
@@ -130,17 +179,20 @@ func (c *Cache) Append(key string, value string) (int, error) {
 		value = old + value
 	}
 
-	c.dataDict.Set(key, tryInt64(value))
+	c.dataDict.Store(key, tryInt64(value))
 	return len(value), nil
 }
 
 func (c *Cache) SetRange(key string, pos int, replace string) (int, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	if pos < 0 {
 		return 0, ErrOffsetOutOfRange
 	}
 
 	// key is not exist or expired
-	old, ok := c.dataDict.Get(key)
+	old, ok := c.dataDict.Load(key)
 	if !ok || c.expired(key) {
 		str := make([]byte, pos)
 		for i := 0; i < pos; i++ {
@@ -148,7 +200,7 @@ func (c *Cache) SetRange(key string, pos int, replace string) (int, error) {
 		}
 
 		replace = string(str) + replace
-		c.dataDict.Set(key, tryInt64(replace))
+		c.dataDict.Store(key, tryInt64(replace))
 		return len(replace), nil
 	}
 
@@ -171,12 +223,15 @@ func (c *Cache) SetRange(key string, pos int, replace string) (int, error) {
 		}
 	}
 
-	c.dataDict.Set(key, tryInt64(string(str)))
+	c.dataDict.Store(key, tryInt64(string(str)))
 	return len(str), nil
 }
 
 func (c *Cache) GetRange(key string, start, end int) (string, error) {
-	old, ok := c.dataDict.Get(key)
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	old, ok := c.dataDict.Load(key)
 	if !ok || c.expired(key) {
 		return "", nil
 	}
@@ -211,10 +266,15 @@ func (c *Cache) Incr(key string) (int, error) {
 	return c.IncrBy(key, 1)
 }
 
-var ErrIncrChanged = errors.New("value is reset")
-
 func (c *Cache) IncrBy(key string, increment int64) (int, error) {
-	actual, ok := c.dataDict.GetOrInsert(key, increment)
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	return c.incrBy(key, increment)
+}
+
+func (c *Cache) incrBy(key string, increment int64) (int, error) {
+	actual, ok := c.dataDict.LoadOrStore(key, increment)
 	if !ok {
 		return int(increment), nil
 	}
@@ -241,15 +301,16 @@ func (c *Cache) IncrBy(key string, increment int64) (int, error) {
 		return 0, ErrWrongType
 	}
 
-	if c.dataDict.Cas(key, actual, val) {
-		return n, nil
-	} else {
-		return 0, ErrIncrChanged
-	}
+	c.dataDict.Store(key, val)
+
+	return n,nil
 }
 
 func (c *Cache) IncrByFloat(key string, increment float64) (float64, error) {
-	actual, ok := c.dataDict.GetOrInsert(key, increment)
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	actual, ok := c.dataDict.LoadOrStore(key, increment)
 	if !ok {
 		return increment, nil
 	}
@@ -257,45 +318,51 @@ func (c *Cache) IncrByFloat(key string, increment float64) (float64, error) {
 	switch val := actual.(type) {
 	case float64:
 		val += increment
-		if c.dataDict.Cas(key, actual, val) {
-			return val, nil
-		} else {
-			return 0, ErrIncrChanged
-		}
+		c.dataDict.Store(key, val)
+		return val, nil
 	case int:
 		f := float64(val) + increment
-		if c.dataDict.Cas(key, actual, f) {
-			return f, nil
-		} else {
-			return 0, ErrIncrChanged
-		}
+		c.dataDict.Store(key, f)
+		return f, nil
 	default:
 		return 0, ErrWrongType
 	}
 }
 
 func (c *Cache) Decr(key string) (int, error) {
-	return c.IncrBy(key, -1)
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	return c.incrBy(key, -1)
 }
 
 func (c *Cache) DecrBy(key string, decrement int64) (int, error) {
-	return c.IncrBy(key, -decrement)
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	return c.incrBy(key, -decrement)
 
 }
 
 func (c *Cache) MSet(kv map[string]string) (ok string) {
+	//c.lock.Lock()
+	//defer c.lock.Unlock()
+
 	for k, v := range kv {
-		c.dataDict.Set(k, tryInt64(v))
+		c.dataDict.Store(k, tryInt64(v))
 	}
 
 	return OK
 }
 
 func (c *Cache) MSetNX(kv map[string]string) int {
+	//c.lock.Lock()
+	//defer c.lock.Unlock()
+
 	n := 0
 
 	for k, v := range kv {
-		if _, loaded := c.dataDict.GetOrInsert(k, tryInt64(v)); !loaded {
+		if _, loaded := c.dataDict.LoadOrStore(k, tryInt64(v)); !loaded {
 			n++
 		}
 	}
@@ -304,13 +371,20 @@ func (c *Cache) MSetNX(kv map[string]string) int {
 }
 
 func (c *Cache) MGet(keys ...string) []interface{} {
+	//c.lock.RLock()
+	//defer c.lock.RUnlock()
+
 	var values = make([]interface{}, len(keys))
 	for id, k := range keys {
-		v, err := c.Get(k)
-		if err != nil {
-			values[id] = err
+
+		if v, ok := c.get(k); !ok {
+			values[id] = ErrKeyNil
 		} else {
-			values[id] = v
+			if str, err := fmtString(v);err != nil{
+				values[id] =  err
+			}else{
+				values[id] = str
+			}
 		}
 	}
 	return values

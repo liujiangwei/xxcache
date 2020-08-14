@@ -1,18 +1,21 @@
 package cache
 
 import (
+	"strconv"
 	"testing"
 	"time"
 )
 
-var cache = Cache{}
+var cache = New()
 
 func init() {
-
+	//cache.Cron()
 }
 
 func TestCache_Set(t *testing.T) {
-	cache.Set("test", "test")
+	if ok, err := cache.Set("test", "test"); err != nil || ok != OK{
+		t.Fatal(ok, err)
+	}
 	cache.Del("test")
 }
 
@@ -28,7 +31,6 @@ func TestCache_SetNX(t *testing.T) {
 	cache.Del("test")
 	if n, err := cache.SetNX("test", "test"); err != nil || n == 0 {
 		t.Fatal(err, n)
-		t.Fatal()
 	}
 
 	cache.Del("test")
@@ -120,15 +122,15 @@ func TestCache_StrLen(t *testing.T) {
 	cache.Del("test")
 
 	if n, err := cache.StrLen("test"); err != nil || n != 0 {
-		t.Fail()
+		t.Fatal(n, err)
 	}
 
 	if ok, err := cache.Set("test", "test"); err != nil || ok != OK {
-		t.Fail()
+		t.Fatal(ok, err)
 	}
 
 	if n, err := cache.StrLen("test"); err != nil || n != 4 {
-		t.Fail()
+		t.Fatal(n, err)
 	}
 
 	cache.Del("test")
@@ -137,42 +139,43 @@ func TestCache_StrLen(t *testing.T) {
 func TestCache_Append(t *testing.T) {
 	cache.Del("test")
 	if n, err := cache.Append("test", "t"); err != nil || n !=1 {
-		t.Fail()
+		t.Fatal(n, err)
 	}
 
 	if n, err := cache.Append("test", "t"); err != nil || n !=2 {
-		t.Fail()
+		t.Fatal(n, err)
 	}
 	cache.Del("test")
 
 	// test for int
 	if n, err := cache.Append("test", "1"); err != nil || n !=1 {
-		t.Fail()
+		t.Fatal(n, err)
 	}
 
 	if n, err := cache.Append("test", "1"); err != nil || n !=2 {
-		t.Fail()
+		t.Fatal(n, err)
 	}
 	cache.Del("test")
 
 	// test for int
 	if n, err := cache.Append("test", "1"); err != nil || n !=1 {
-		t.Fail()
+		t.Fatal(n, err)
 	}
 
 	if n, err := cache.Append("test", "a"); err != nil || n !=2 {
-		t.Fail()
+		t.Fatal(n, err)
 	}
 	cache.Del("test")
 
 	// test for int
 	if n, err := cache.Append("test", "0.1"); err != nil || n !=3 {
-		t.Fail()
+		t.Fatal(n, err)
 	}
 
 	if n, err := cache.Append("test", "a"); err != nil || n !=4 {
-		t.Fail()
+		t.Fatal(n, err)
 	}
+
 	cache.Del("test")
 }
 
@@ -387,4 +390,35 @@ func TestCache_MSetNX(t *testing.T) {
 	if n := cache.MSetNX(kv); n != 0{
 		t.Fatal(n)
 	}
+}
+
+func BenchmarkCache_Set(b *testing.B) {
+	b.SetParallelism(4)
+	b.RunParallel(func(pb *testing.PB) {
+		for i:=0; pb.Next(); i++{
+			cache.Set(strconv.Itoa(i), "test")
+		}
+	})
+	b.ReportAllocs()
+}
+
+func BenchmarkCache_Get(b *testing.B) {
+	b.SetParallelism(4)
+	b.RunParallel(func(pb *testing.PB) {
+		for i:=0; pb.Next(); i++{
+			cache.Get(strconv.Itoa(i))
+		}
+	})
+	b.ReportAllocs()
+}
+
+func BenchmarkCache_SetEX(b *testing.B) {
+	b.SetParallelism(4)
+	b.RunParallel(func(pb *testing.PB) {
+		for i:=0; pb.Next(); i++{
+			cache.SetEX(strconv.Itoa(i), "test", 1)
+		}
+	})
+
+	b.ReportAllocs()
 }
