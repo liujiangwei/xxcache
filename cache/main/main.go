@@ -13,14 +13,16 @@ func test()  {
 
 func main() {
 	client := cache.New()
-	client.Set("a", "aaa")
-	logrus.Infoln(client.Get("a"))
+	client.HSet("a", "f", "v")
+	logrus.Infoln(client.HGet("a", "f"))
 
-	return
 	logrus.Print(time.Now().String())
-	for i:=0; i < 10000000;i++{
+	for i:=0; i < 100000;i++{
 		s := strconv.Itoa(i)
-		client.SetEX(s, s, 1)
+		for i:=0; i < 100;i++{
+			fv := strconv.Itoa(i)
+			client.HSet(s, fv, fv)
+		}
 	}
 
 	logrus.Print(time.Now().String())

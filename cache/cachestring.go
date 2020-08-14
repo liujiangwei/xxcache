@@ -60,14 +60,22 @@ func (c *Cache) PSetEX(key, value string, expiresMs int64) (string, error) {
 
 func fmtString(v interface{}) (str string, err error) {
 	switch value := v.(type) {
+	case string:
+		str = value
 	case int:
 		str = strconv.Itoa(value)
+	case int32:
+		str = strconv.Itoa(int(value))
 	case int64:
+		str = strconv.Itoa(int(value))
+	case uint:
+		str = strconv.Itoa(int(value))
+	case uint32:
+		str = strconv.Itoa(int(value))
+	case uint64:
 		str = strconv.Itoa(int(value))
 	case float64:
 		str = strconv.FormatFloat(value, 'f', -1, 64)
-	case string:
-		str = value
 	default:
 		err = ErrWrongType
 	}
@@ -75,50 +83,7 @@ func fmtString(v interface{}) (str string, err error) {
 	return str, err
 }
 
-// if key is expired
-func (c *Cache) expired(key string) bool {
-	v, ok := c.expiresDict.Load(key)
-	if !ok || v == nil {
-		return false
-	}
 
-	var expired bool
-	if expires, ok := v.(time.Time); ok {
-		expired = expires.Before(time.Now())
-	}
-
-	// delete expired key value
-	if expired {
-		c.dataDict.Delete(key)
-		c.expiresDict.Delete(key)
-	}
-
-	return expired
-}
-
-// set expire time after duration from now
-// if duration < 0, remove expire time
-func (c *Cache) expires(key string, duration time.Duration) {
-	if duration <= 0{
-		c.expiresDict.Delete(key)
-	}else{
-		c.expiresDict.Store(key, time.Now().Add(duration))
-	}
-}
-
-func (c *Cache) get(key string) (value interface{},ok bool){
-	val, ok := c.dataDict.Load(key)
-	if !ok{
-		return val, ok
-	}
-
-	if c.expired(key) {
-		val = nil
-		ok = false
-	}
-
-	return val, ok
-}
 
 func (c *Cache) Get(key string) (string, error) {
 	c.lock.RLock()
