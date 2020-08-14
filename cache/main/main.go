@@ -7,11 +7,12 @@ import (
 	"time"
 )
 
-func test()  {
-	
-}
 
 func main() {
+	logrus.Infoln(strconv.Atoi(""))
+
+	return
+	test()
 	client := cache.New()
 	client.HSet("a", "f", "v")
 	logrus.Infoln(client.HGet("a", "f"))
@@ -27,4 +28,11 @@ func main() {
 
 	logrus.Print(time.Now().String())
 	time.Sleep(time.Second * 10)
+}
+
+func test()(n int)  {
+
+	defer logrus.Infoln("n", n)
+	n = 2
+	return n
 }

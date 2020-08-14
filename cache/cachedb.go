@@ -38,7 +38,7 @@ func (c *Cache)Type(key string) string {
 	}
 
 	switch v.(type) {
-	case HashEntry:
+	case hashEntry:
 		return "hash"
 	default:
 		return "string"
