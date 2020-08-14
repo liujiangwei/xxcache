@@ -409,15 +409,14 @@ func BenchmarkCache_Get(b *testing.B) {
 	b.SetParallelism(4)
 	b.RunParallel(func(pb *testing.PB) {
 		for i:=0; pb.Next(); i++{
-			if val, err := client.Get(strconv.Itoa(i)); err != nil{
-				b.Fatal(val, err)
-			}
+			client.Get(strconv.Itoa(i))
 		}
 	})
 	b.ReportAllocs()
 }
 
 func BenchmarkCache_SetEX(b *testing.B) {
+	client.Flush()
 	b.SetParallelism(4)
 	b.RunParallel(func(pb *testing.PB) {
 		for i:=0; pb.Next(); i++{
