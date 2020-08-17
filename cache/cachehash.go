@@ -122,6 +122,10 @@ func (c *Cache) HDel(key string, fields ...string) (n int, err error) {
 		}
 	}
 
+	if n != 0{
+		he.length -= n
+	}
+
 	return n, nil
 }
 
